@@ -1052,7 +1052,7 @@ function App() {
             React.createElement("textarea", { value: systemPrompt, onChange: e => setSystemPrompt(e.target.value), rows: 4, style: { width: "100%", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", padding: "10px", fontSize: "13px", backgroundColor: T.cardBg, color: T.text, resize: "none", fontFamily: "inherit" } })
           ),
           // Visual Theme Section
-          React.createElement("div", { style: { marginBottom: "20px" } },
+          React.createElement("div", { style: { marginBottom: bgMode === "none" ? "20px" : "0px", maxHeight: bgMode === "none" ? "300px" : "0px", opacity: bgMode === "none" ? 1 : 0, overflow: "hidden", transition: "all 0.4s ease-in-out" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "VISUAL THEME"),
             
             // Only show AI image previews if normal mode is on
@@ -1111,7 +1111,7 @@ function App() {
           ),
 
           // Background Section
-          React.createElement("div", { style: { marginBottom: "20px" } },
+          React.createElement("div", { style: { marginBottom: themeMode !== "hacker" ? "20px" : "0px", maxHeight: themeMode !== "hacker" ? "300px" : "0px", opacity: themeMode !== "hacker" ? 1 : 0, overflow: "hidden", transition: "all 0.4s ease-in-out" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "BACKGROUND"),
             React.createElement("div", { style: { display: "flex", gap: "10px" } },
               React.createElement("div", {
