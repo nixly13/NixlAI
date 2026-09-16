@@ -195,6 +195,21 @@
       animation: newchat-flicker-hacker 0.9s steps(6) forwards;
       white-space: nowrap;
     }
+
+    #bg-media-layer {
+      position: fixed; inset: 0; z-index: -1;
+      pointer-events: none;
+      background-size: cover; background-position: center; background-repeat: no-repeat;
+    }
+    #rain-canvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      z-index: -1; pointer-events: none; display: none;
+    }
+    .bg-option-card {
+      flex: 1; height: 70px; border-radius: 8px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: bold; position: relative; overflow: hidden;
+    }
   </style>
 </head>
 <body>
@@ -308,7 +323,72 @@ function useMatrixRain(active, canvasRef) {
   }, [active, canvasRef]);
 }
 
-// ── Thinking dots ────────────────────────────────────────────────
+// ── Rainfall scenery background ────────────────────────────────
+function useRainfall(active, canvasRef) {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.style.display = active ? "block" : "none";
+    if (!active) return;
+
+    const ctx = canvas.getContext("2d");
+    let animationId = null;
+    let drops = [];
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const count = Math.floor((canvas.width * canvas.height) / 9000);
+      drops = new Array(count).fill(0).map(() => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        len: 10 + Math.random() * 20,
+        speed: 4 + Math.random() * 6,
+        opacity: 0.15 + Math.random() * 0.35
+      }));
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // subtle dark blue-grey wash to evoke a rainy sky
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, "rgba(15,23,42,0.35)");
+      grad.addColorStop(1, "rgba(30,41,59,0.20)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "rgba(174,214,241,0.55)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < drops.length; i++) {
+        const d = drops[i];
+        ctx.globalAlpha = d.opacity;
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y);
+        ctx.lineTo(d.x - 2, d.y + d.len);
+        ctx.stroke();
+        d.y += d.speed;
+        d.x -= 0.6;
+        if (d.y > canvas.height) {
+          d.y = -d.len;
+          d.x = Math.random() * canvas.width;
+        }
+      }
+      ctx.globalAlpha = 1;
+      animationId = requestAnimationFrame(draw);
+    }
+
+    resize();
+    window.addEventListener("resize", resize);
+    draw();
+
+    return () => {
+      if (animationId) cancelAnimationFrame(animationId);
+      window.removeEventListener("resize", resize);
+    };
+  }, [active, canvasRef]);
+}
+
+
 function ThinkingDots({ cardBg, border, themeMode }) {
   if (themeMode === "hacker") {
     return React.createElement("div", {
@@ -531,15 +611,20 @@ function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [authError, setAuthError] = useState("");
   const [newChatAnim, setNewChatAnim] = useState(false);
+  const [bgMode, setBgMode] = useState("none"); // 'none' | 'custom' | 'rain'
+  const [customBgUrl, setCustomBgUrl] = useState(null);
+  const bgFileInputRef = useRef(null);
 
   const recognitionRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const matrixCanvasRef = useRef(null);
+  const rainCanvasRef = useRef(null);
 
   const isDark = currentTheme === "dark";
 
   useMatrixRain(themeMode === "hacker", matrixCanvasRef);
+  useRainfall(bgMode === "rain", rainCanvasRef);
   
   // Apply Hacker overrides to theme variables if hacker mode is active
   const T = themeMode === "hacker" ? {
@@ -646,6 +731,16 @@ function App() {
 
   const triggerFileExplorer = (mode) => { setActiveInputMode(mode); fileInputRef.current?.click(); setIsAttachMenuOpen(false); };
 
+  const handleBgFileChange = (e) => {
+    const f = e.target.files[0];
+    if (f) {
+      const reader = new FileReader();
+      reader.onload = () => { setCustomBgUrl(reader.result); setBgMode("custom"); };
+      reader.readAsDataURL(f);
+    }
+    e.target.value = "";
+  };
+
   const sendToApi = async (userMsgText, history) => {
     setIsThinking(true);
     try {
@@ -730,6 +825,17 @@ function App() {
   },
     // Matrix rain canvas — sits behind everything, only painted while hacker theme is active
     React.createElement("canvas", { id: "matrix-rain-canvas", ref: matrixCanvasRef }),
+
+    // Rainfall scenery canvas — sits behind everything, only painted while bgMode === "rain"
+    React.createElement("canvas", { id: "rain-canvas", ref: rainCanvasRef }),
+
+    // Custom background image layer
+    bgMode === "custom" && customBgUrl && React.createElement("div", {
+      id: "bg-media-layer",
+      style: { backgroundImage: `url(${customBgUrl})` }
+    }),
+
+    React.createElement("input", { type: "file", ref: bgFileInputRef, onChange: handleBgFileChange, style: { display: "none" }, accept: "image/*" }),
 
     React.createElement("input", { type: "file", ref: fileInputRef, onChange: e => { const f = e.target.files[0]; if (f) setAttachedFile({ name: f.name, type: activeInputMode }); e.target.value = ""; }, style: { display: "none" }, accept: activeInputMode === "image" ? "image/*" : "*/*" }),
 
@@ -1001,6 +1107,50 @@ function App() {
                 }
               }, "Hacker Theme")
             )
+          ),
+
+          // Background Section
+          React.createElement("div", { style: { marginBottom: "20px" } },
+            React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "BACKGROUND"),
+            React.createElement("div", { style: { display: "flex", gap: "10px" } },
+              React.createElement("div", {
+                onClick: () => setBgMode("none"),
+                className: "bg-option-card",
+                style: {
+                  border: bgMode === "none" ? "2px solid #4f46e5" : `1px solid ${T.border}`,
+                  background: T.cardBg || "rgba(128,128,128,0.08)",
+                  color: T.subText
+                }
+              }, "None"),
+              React.createElement("div", {
+                onClick: () => { setBgMode("custom"); bgFileInputRef.current?.click(); },
+                className: "bg-option-card",
+                style: {
+                  border: bgMode === "custom" ? "2px solid #4f46e5" : `1px solid ${T.border}`,
+                  backgroundImage: bgMode === "custom" && customBgUrl ? `url(${customBgUrl})` : "none",
+                  backgroundSize: "cover", backgroundPosition: "center",
+                  background: bgMode === "custom" && customBgUrl ? undefined : "linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.15))",
+                  color: bgMode === "custom" && customBgUrl ? "#fff" : T.text,
+                  textShadow: bgMode === "custom" && customBgUrl ? "0 1px 3px rgba(0,0,0,0.8)" : "none"
+                }
+              }, "Add Your Own"),
+              React.createElement("div", {
+                onClick: () => setBgMode("rain"),
+                className: "bg-option-card",
+                style: {
+                  border: bgMode === "rain" ? "2px solid #4f46e5" : `1px solid ${T.border}`,
+                  background: "linear-gradient(180deg, #0f172a, #1e293b)",
+                  color: "#aed6f1", overflow: "hidden"
+                }
+              },
+                React.createElement("div", { style: { position: "absolute", inset: 0, opacity: 0.5, background: "repeating-linear-gradient(100deg, transparent 0 6px, rgba(174,214,241,0.5) 6px 7px)" } }),
+                React.createElement("span", { style: { position: "relative", zIndex: 1 } }, "Rainfall")
+              )
+            ),
+            bgMode === "custom" && React.createElement("button", {
+              onClick: () => bgFileInputRef.current?.click(),
+              style: { marginTop: "8px", width: "100%", padding: "8px", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "6px", background: "transparent", color: T.text, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }
+            }, "Change Image")
           )
         )
       )
@@ -1059,8 +1209,8 @@ function App() {
       },
         React.createElement("h2", { style: { fontSize: "18px", fontWeight: "800", letterSpacing: "1px", margin: 0, lineHeight: "1.4", fontFamily: themeMode === "hacker" ? "'Courier New', Courier, monospace" : "inherit", color: themeMode === "hacker" ? "#0f0" : "white" } }, "ARE YOU SURE YOU WANNA DISCONNECT YOUR SYNC"),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "15px" } },
-          React.createElement("button", { className: "sync-btn-option", style: { fontFamily: themeMode === "hacker" ? "inherit" : "inherit" }, onClick: confirmSignOut }, "YEAH I AM SURE"),
-          React.createElement("button", { className: "sync-btn-option", style: { fontFamily: themeMode === "hacker" ? "inherit" : "inherit" }, onClick: () => setShowSignOutConfirm(false) }, "NO I DON'T WNNA")
+          React.createElement("button", { className: "sync-btn-option", style: { fontFamily: themeMode === "hacker" ? "inherit" : "inherit" }, onClick: confirmSignOut }, "YEAH"),
+          React.createElement("button", { className: "sync-btn-option", style: { fontFamily: themeMode === "hacker" ? "inherit" : "inherit" }, onClick: () => setShowSignOutConfirm(false) }, "NO")
         )
       )
     )
