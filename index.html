@@ -612,12 +612,23 @@ function App() {
     ),
 
     // ── SETTINGS SIDEBAR ──
-    isSettingsOpen && React.createElement("div", {
-      style: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex" },
+    React.createElement("div", {
+      style: {
+        position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex",
+        opacity: isSettingsOpen ? 1 : 0,
+        pointerEvents: isSettingsOpen ? "auto" : "none",
+        transition: "opacity 0.22s ease"
+      },
       onClick: () => setIsSettingsOpen(false)
     },
       React.createElement("div", {
-        style: { width: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column", borderRadius: "16px", border: `1px solid ${T.border}`, backgroundColor: T.sidebarBg, color: T.text, overflow: "hidden", boxShadow: T.shadow },
+        style: {
+          width: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column",
+          borderRadius: "16px", border: `1px solid ${T.border}`, backgroundColor: T.sidebarBg, color: T.text,
+          overflow: "hidden", boxShadow: T.shadow,
+          transform: isSettingsOpen ? "translateX(0) scale(1)" : "translateX(-28px) scale(0.96)",
+          transition: "transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)"
+        },
         onClick: e => e.stopPropagation()
       },
         React.createElement("div", { style: { padding: "20px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 } },
@@ -696,12 +707,23 @@ function App() {
     ),
 
     // ── HISTORY SIDEBAR ──
-    isHistoryOpen && React.createElement("div", {
-      style: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", justifyContent: "flex-end" },
+    React.createElement("div", {
+      style: {
+        position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", justifyContent: "flex-end",
+        opacity: isHistoryOpen ? 1 : 0,
+        pointerEvents: isHistoryOpen ? "auto" : "none",
+        transition: "opacity 0.22s ease"
+      },
       onClick: () => setIsHistoryOpen(false)
     },
       React.createElement("div", {
-        style: { width: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column", borderRadius: "16px", border: `1px solid ${T.border}`, backgroundColor: T.sidebarBg, color: T.text, overflow: "hidden", boxShadow: T.shadow },
+        style: {
+          width: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column",
+          borderRadius: "16px", border: `1px solid ${T.border}`, backgroundColor: T.sidebarBg, color: T.text,
+          overflow: "hidden", boxShadow: T.shadow,
+          transform: isHistoryOpen ? "translateX(0) scale(1)" : "translateX(28px) scale(0.96)",
+          transition: "transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)"
+        },
         onClick: e => e.stopPropagation()
       },
         React.createElement("div", { style: { padding: "20px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 } },
