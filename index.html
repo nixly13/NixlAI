@@ -122,6 +122,79 @@
       pointer-events: none;
       display: none;
     }
+
+    /* New Chat transition overlay */
+    @keyframes newchat-wipe-normal {
+      0%   { opacity: 0; transform: scale(0.98); }
+      12%  { opacity: 1; transform: scale(1); }
+      70%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @keyframes newchat-ring-normal {
+      0%   { transform: translate(-50%,-50%) scale(0.2); opacity: 0.9; }
+      100% { transform: translate(-50%,-50%) scale(14); opacity: 0; }
+    }
+    .newchat-overlay-normal {
+      position: absolute; inset: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+      animation: newchat-wipe-normal 0.9s ease forwards;
+      background: radial-gradient(circle at 50% 50%, rgba(79,70,229,0.18), transparent 60%);
+    }
+    .newchat-ring-normal {
+      position: absolute; top: 50%; left: 50%;
+      width: 24px; height: 24px; border-radius: 50%;
+      border: 2px solid rgba(79,70,229,0.55);
+      animation: newchat-ring-normal 0.8s cubic-bezier(0.2,0.7,0.3,1) forwards;
+    }
+    .newchat-label-normal {
+      position: relative; font-size: 13px; font-weight: 600;
+      color: #818cf8; letter-spacing: 0.3px;
+      opacity: 0; animation: newchat-label-fade 0.9s ease forwards;
+    }
+    @keyframes newchat-label-fade {
+      0% { opacity: 0; transform: translateY(4px); }
+      20% { opacity: 1; transform: translateY(0); }
+      75% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Hacker theme: terminal boot / wipe effect */
+    @keyframes newchat-scan-hacker {
+      0%   { top: -10%; opacity: 1; }
+      100% { top: 110%; opacity: 1; }
+    }
+    @keyframes newchat-fade-hacker {
+      0%   { opacity: 0; }
+      10%  { opacity: 1; }
+      85%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @keyframes newchat-flicker-hacker {
+      0%, 100% { opacity: 1; }
+      45% { opacity: 0.4; }
+      50% { opacity: 1; }
+      55% { opacity: 0.6; }
+      60% { opacity: 1; }
+    }
+    .newchat-overlay-hacker {
+      position: absolute; inset: 0; z-index: 50; overflow: hidden;
+      pointer-events: none; background: #000;
+      animation: newchat-fade-hacker 1s steps(20) forwards;
+    }
+    .newchat-scanline-hacker {
+      position: absolute; left: 0; width: 100%; height: 3px;
+      background: linear-gradient(to bottom, transparent, #0f0, transparent);
+      box-shadow: 0 0 10px 2px rgba(0,255,0,0.7);
+      animation: newchat-scan-hacker 0.85s linear forwards;
+    }
+    .newchat-label-hacker {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      color: #0f0; font-family: 'Courier New', Courier, monospace;
+      font-size: 13px; letter-spacing: 1px;
+      animation: newchat-flicker-hacker 0.9s steps(6) forwards;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -457,6 +530,7 @@ function App() {
   const [chatCount, setChatCount] = useState(0);
   const [isThinking, setIsThinking] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [newChatAnim, setNewChatAnim] = useState(false);
 
   const recognitionRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -555,6 +629,8 @@ function App() {
   const handleStartNewChat = () => {
     setActiveChatId(null); setCurrentChatMessages([]);
     setInputValue(""); setAttachedFile(null);
+    setNewChatAnim(true);
+    setTimeout(() => setNewChatAnim(false), 950);
   };
 
   const handleSelectHistoricChat = (chat) => {
@@ -690,6 +766,17 @@ function App() {
     React.createElement("div", {
       style: { flex: 1, padding: "24px 24px 8px", overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", WebkitOverflowScrolling: "touch", position: "relative", zIndex: 1 }
     },
+      newChatAnim && (
+        themeMode === "hacker"
+          ? React.createElement("div", { className: "newchat-overlay-hacker" },
+              React.createElement("div", { className: "newchat-scanline-hacker" }),
+              React.createElement("div", { className: "newchat-label-hacker" }, "> INITIALIZING NEW SESSION...")
+            )
+          : React.createElement("div", { className: "newchat-overlay-normal" },
+              React.createElement("div", { className: "newchat-ring-normal" }),
+              React.createElement("div", { className: "newchat-label-normal" }, "Starting a new chat…")
+            )
+      ),
       currentChatMessages.length === 0 && !isThinking
         ? React.createElement("div", { style: { margin: "auto", textAlign: "center", color: T.subText, fontSize: "14px" } },
             isTemporaryChat ? (themeMode === "hacker" ? "> TEMPORARY SESSION ACTIVE [NO_LOGS]" : "🕵️ Temporary chat — nothing here will be saved.") : (themeMode === "hacker" ? `> TERMINAL READY. AWAITING INPUT, ${nickname.toUpperCase()}...` : `Hey ${nickname} 👋 Ask NixlAI anything…`)
