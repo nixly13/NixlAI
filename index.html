@@ -764,7 +764,7 @@ function App() {
   //   2. Mints a Firebase custom token for that user
   //   3. Returns { customToken }
   // Set TELEGRAM_BOT_USERNAME below to your bot's username (no @).
-  const TELEGRAM_BOT_USERNAME = "nixlai.vercel.app";
+  const TELEGRAM_BOT_USERNAME = "NixlaiLoginBot";
 
   useEffect(() => {
     window.onTelegramAuth = async (user) => {
@@ -879,7 +879,7 @@ function App() {
       }
     } catch (err) {
       console.error(err);
-      setCurrentChatMessages(p => [...p, { id: Date.now() + 1, text: `⚠️ API Error: ${err.message}`, sender: "ai" }]);
+      setCurrentChatMessages(p => [...p, { id: Date.now() + 1, text: `⚠️ Sorry i am unavailable right now pls try again later: ${err.message}`, sender: "ai" }]);
     } finally {
       setIsThinking(false);
     }
