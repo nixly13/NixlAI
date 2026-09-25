@@ -652,6 +652,7 @@ function App() {
   const matrixCanvasRef = useRef(null);
   const rainCanvasRef = useRef(null);
   const telegramContainerRef = useRef(null);
+  const currentUidRef = useRef(null);
 
   const isDark = currentTheme === "dark";
 
@@ -693,6 +694,31 @@ function App() {
     return () => window.removeEventListener("firebase-ready", handler);
   }, []);
 
+  // ── LOCAL "CLOUD SYNC" STORAGE HELPERS ───────────────────────────
+  // Each account (by uid) gets its own history bucket in localStorage,
+  // namespaced under nixlai_sync_<uid>. This is what lets history
+  // "sync" the moment you log into a given account (any device/browser
+  // sharing this storage), and what gets cleared from view on sign-out —
+  // exactly like ChatGPT/other AI apps hide your account history once
+  // you're signed out, rather than mixing it with guest chats.
+  const loadSyncedHistory = (uid) => {
+    try {
+      const raw = localStorage.getItem(`nixlai_sync_${uid}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      console.error("Failed to load synced history", e);
+      return [];
+    }
+  };
+  const saveSyncedHistory = (uid, chats) => {
+    if (!uid) return;
+    try {
+      localStorage.setItem(`nixlai_sync_${uid}`, JSON.stringify(chats));
+    } catch (e) {
+      console.error("Failed to save synced history", e);
+    }
+  };
+
   useEffect(() => {
     if (!firebaseReady || !window.__nixlai_onAuthStateChanged) return;
     const unsub = window.__nixlai_onAuthStateChanged((user) => {
@@ -702,14 +728,38 @@ function App() {
         setUserEmail(user.email);
         setUserPhoto(user.photoURL);
         setIsUserLoggedIn(true);
+
+        // ── Sync starts: pull this account's saved chat history in ──
+        currentUidRef.current = user.uid;
+        const synced = loadSyncedHistory(user.uid);
+        setHistoryChats(synced);
+        setActiveChatId(null);
+        setCurrentChatMessages([]);
+        setChatCount(0);
       } else {
+        // ── Signed out: drop the account's history from view ──
+        // (it stays saved under that uid in storage so it comes back
+        // next time that same account logs back in — it's just not
+        // shown while logged out, same as other AI apps.)
+        currentUidRef.current = null;
         setRealName("Guest User"); setNickname("Chief");
         setUserEmail(""); setUserPhoto(null); setIsUserLoggedIn(false);
         setAuthProvider(null);
+        setHistoryChats([]);
+        setActiveChatId(null);
+        setCurrentChatMessages([]);
+        setChatCount(0);
       }
     });
     return () => unsub && unsub();
   }, [firebaseReady]);
+
+  // Keep the synced bucket for the logged-in account up to date whenever
+  // the history list changes (new chat saved, existing chat updated).
+  useEffect(() => {
+    if (!currentUidRef.current || isTemporaryChat) return;
+    saveSyncedHistory(currentUidRef.current, historyChats);
+  }, [historyChats, isTemporaryChat]);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1304,13 +1354,17 @@ function App() {
         React.createElement("div", { style: { padding: "20px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 } },
           React.createElement("div", null,
             React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", letterSpacing: "0.5px" } }, "SAVED CHAT LOGS"),
-            React.createElement("div", { style: { fontSize: "10px", color: T.subText, marginTop: "2px" } }, "LOCAL CACHE")
+            React.createElement("div", { style: { fontSize: "10px", color: T.subText, marginTop: "2px" } }, isUserLoggedIn ? "SYNCED TO ACCOUNT" : "LOCAL CACHE")
           ),
           React.createElement("button", { onClick: () => setIsHistoryOpen(false), style: { background: "none", border: "none", cursor: "pointer", color: T.subText, fontSize: "18px" } }, "×")
         ),
         React.createElement("div", { className: "sidebar-scroll" },
           historyChats.length === 0
-            ? React.createElement("div", { style: { padding: "20px", fontSize: "13px", color: T.subText, textAlign: "center" } }, themeMode === "hacker" ? "> NO LOGS FOUND." : "No chats saved yet.")
+            ? React.createElement("div", { style: { padding: "20px", fontSize: "13px", color: T.subText, textAlign: "center" } },
+                themeMode === "hacker"
+                  ? "> NO LOGS FOUND."
+                  : (isUserLoggedIn ? "No chats saved yet." : "Sign in to sync and save your chat history.")
+              )
             : historyChats.map(chat =>
                 React.createElement("div", {
                   key: chat.id,
