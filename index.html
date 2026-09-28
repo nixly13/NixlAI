@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Added maximum-scale=1.0 and user-scalable=no to prevent unwanted zooming on mobile inputs -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>NixlAI</title>
   <link rel="icon" type="image/png" href="/ChatGpt Image sep16,26,05_46_47 PM.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -25,10 +26,6 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
-    // GitHub OAuth provider — must be enabled in Firebase Console →
-    // Authentication → Sign-in method → GitHub, with a GitHub OAuth App
-    // registered at github.com/settings/developers using the callback
-    // URL Firebase gives you there.
     const githubProvider = new GithubAuthProvider();
 
     window.__nixlai_auth = auth;
@@ -36,9 +33,6 @@
     window.__nixlai_githubProvider = githubProvider;
     window.__nixlai_signIn = () => signInWithPopup(auth, provider);
     window.__nixlai_signInGithub = () => signInWithPopup(auth, githubProvider);
-    // Used by the Telegram flow: exchanges a server-verified custom token
-    // (minted by your backend after verifying the Telegram login hash)
-    // for a real Firebase session.
     window.__nixlai_signInWithCustomToken = (token) => signInWithCustomToken(auth, token);
     window.__nixlai_signOut = () => signOut(auth);
     window.__nixlai_onAuthStateChanged = (cb) => onAuthStateChanged(auth, cb);
@@ -48,12 +42,20 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100dvh; width: 100%; overflow: hidden; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; touch-action: manipulation; }
+    
+    /* MOBILE AND TABLET RESPONSIVENESS */
     @media (max-width: 768px) {
-      .chat-area { -webkit-overflow-scrolling: touch !important; }
-      .input-wrapper { padding: 8px 12px env(safe-area-inset-bottom, 12px) !important; }
-      .header-btn-text { display: none; }
+      .header-btn-text { display: none !important; }
+      .hide-mobile { display: none !important; }
+      .header-bar { padding: 12px 10px !important; }
+      .input-area { padding: 8px 12px max(12px, env(safe-area-inset-bottom)) !important; }
       .send-btn { width: 38px !important; height: 38px !important; }
+      .sidebar-panel { width: calc(100% - 32px) !important; max-width: 340px !important; }
+      .msg-container { max-width: 90% !important; }
+      /* Give chat area momentum scrolling on iOS */
+      .chat-area { -webkit-overflow-scrolling: touch !important; padding: 16px 12px 8px !important; }
     }
+
     input:focus, select:focus, textarea:focus, button:focus { outline: none; }
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -106,10 +108,8 @@
     .send-btn:hover { transform: scale(1.07); }
     .send-btn:active { transform: scale(0.96); }
 
-    /* Half-glassy dark writing bar: placeholder color */
     .glass-input::placeholder { color: rgba(255,255,255,0.55); }
 
-    /* New styles for Disconnect Sync Options & Hacker Mode */
     .sync-btn-option {
       background: #222; border: 1px solid #444; color: white; padding: 14px 24px;
       border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s ease;
@@ -138,7 +138,6 @@
       display: none;
     }
 
-    /* New Chat transition overlay */
     @keyframes newchat-wipe-normal {
       0%   { opacity: 0; transform: scale(0.98); }
       12%  { opacity: 1; transform: scale(1); }
@@ -174,7 +173,6 @@
       100% { opacity: 0; }
     }
 
-    /* Hacker theme: terminal boot / wipe effect */
     @keyframes newchat-scan-hacker {
       0%   { top: -10%; opacity: 1; }
       100% { top: 110%; opacity: 1; }
@@ -283,7 +281,6 @@ const IconEdit = ({ size = 13 }) => (
     React.createElement("path", { d: "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" })
   )
 );
-// Speaker (read aloud) + stop square icons — SVG symbols, not emoji
 const IconSpeaker = ({ size = 13 }) => (
   React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
     React.createElement("polygon", { points: "11 5 6 9 2 9 2 15 6 15 11 19 11 5" }),
@@ -307,7 +304,6 @@ const IconTelegram = ({ size = 16, color = "#229ED9" }) => (
   )
 );
 
-// ── Detect whether a background image is mostly light or dark ────
 const detectImageTone = (url) => new Promise(resolve => {
   const img = new Image();
   img.onload = () => {
@@ -326,7 +322,6 @@ const detectImageTone = (url) => new Promise(resolve => {
   img.src = url;
 });
 
-// ── Matrix rain background (hacker theme) ─────────────────────────
 function useMatrixRain(active, canvasRef) {
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -351,7 +346,6 @@ function useMatrixRain(active, canvasRef) {
     }
 
     function draw() {
-      // fading trail effect
       ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -362,7 +356,6 @@ function useMatrixRain(active, canvasRef) {
         const x = i * fontSize;
         const y = drops[i] * fontSize;
 
-        // Brighter leading character, dimmer trail
         ctx.fillStyle = "#c8ffc8";
         ctx.fillText(char, x, y);
         ctx.fillStyle = "rgba(0, 255, 70, 0.75)";
@@ -388,7 +381,6 @@ function useMatrixRain(active, canvasRef) {
   }, [active, canvasRef]);
 }
 
-// ── Rainfall scenery background ────────────────────────────────
 function useRainfall(active, canvasRef) {
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -415,7 +407,6 @@ function useRainfall(active, canvasRef) {
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // subtle dark blue-grey wash to evoke a rainy sky
       const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
       grad.addColorStop(0, "rgba(15,23,42,0.35)");
       grad.addColorStop(1, "rgba(30,41,59,0.20)");
@@ -453,7 +444,6 @@ function useRainfall(active, canvasRef) {
   }, [active, canvasRef]);
 }
 
-
 function ThinkingDots({ cardBg, border, themeMode }) {
   if (themeMode === "hacker") {
     return React.createElement("div", {
@@ -471,7 +461,6 @@ function ThinkingDots({ cardBg, border, themeMode }) {
   );
 }
 
-// ── AI message bubble ────────────────────────────────────────────
 function AiMessageBubble({ msg, cardBg, text, border, isTemporaryChat, onRetry, themeMode }) {
   const [hovered, setHovered] = useState(false);
   const [liked, setLiked] = useState(null);
@@ -486,7 +475,6 @@ function AiMessageBubble({ msg, cardBg, text, border, isTemporaryChat, onRetry, 
       setDisplayedText(msg.text);
       return;
     }
-    // Hacker typing effect
     let i = 0;
     setDisplayedText("");
     const interval = setInterval(() => {
@@ -497,7 +485,6 @@ function AiMessageBubble({ msg, cardBg, text, border, isTemporaryChat, onRetry, 
     return () => clearInterval(interval);
   }, [msg.text, isHacker]);
 
-  // Stop speaking if this bubble disappears (new chat, regenerate, etc.)
   useEffect(() => () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); }, []);
 
   const handleCopy = () => {
@@ -507,7 +494,6 @@ function AiMessageBubble({ msg, cardBg, text, border, isTemporaryChat, onRetry, 
     });
   };
 
-  // Read the AI reply aloud; click again to stop
   const handleSpeak = () => {
     if (!window.speechSynthesis) return alert("Text-to-speech isn't supported on this browser.");
     if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
@@ -520,15 +506,15 @@ function AiMessageBubble({ msg, cardBg, text, border, isTemporaryChat, onRetry, 
     window.speechSynthesis.speak(u);
   };
 
- const btnColor = isHacker ? "#0f0" : "#f4f4f5";
-const actualBg = isHacker ? "transparent" : "rgba(15,23,42,0.45)";
-const actualBorder = isHacker ? "none" : (isTemporaryChat ? "1px dashed rgba(239,68,68,0.35)" : "1px solid rgba(255,255,255,0.15)");
-const actualPadding = isHacker ? "12px 0" : "12px 18px";
-const actualColor = isHacker ? "#0f0" : "#f4f4f5";
-const glassBlur = isHacker ? "none" : "blur(8px) saturate(120%)";
+  const btnColor = isHacker ? "#0f0" : "#f4f4f5";
+  const actualBg = isHacker ? "transparent" : "rgba(15,23,42,0.45)";
+  const actualBorder = isHacker ? "none" : (isTemporaryChat ? "1px dashed rgba(239,68,68,0.35)" : "1px solid rgba(255,255,255,0.15)");
+  const actualPadding = isHacker ? "12px 0" : "12px 18px";
+  const actualColor = isHacker ? "#0f0" : "#f4f4f5";
+  const glassBlur = isHacker ? "none" : "blur(8px) saturate(120%)";
 
   return React.createElement("div", {
-    className: "msg-fadein",
+    className: "msg-fadein msg-container",
     style: { alignSelf: "flex-start", display: "flex", flexDirection: "column", gap: "4px", maxWidth: "75%" },
     onMouseEnter: () => setHovered(true),
     onMouseLeave: () => setHovered(false)
@@ -575,7 +561,6 @@ const glassBlur = isHacker ? "none" : "blur(8px) saturate(120%)";
         style: { color: liked === "dislike" ? "#ef4444" : btnColor, borderColor: liked === "dislike" ? "rgba(239,68,68,0.4)" : "transparent" }
       }, React.createElement(IconThumbDown), "Dislike"),
 
-      // Speaker sits right next to Like / Dislike, shown on hover
       React.createElement("button", {
         className: "action-bar-btn", title: speaking ? "Stop" : "Read aloud",
         onClick: handleSpeak,
@@ -585,7 +570,6 @@ const glassBlur = isHacker ? "none" : "blur(8px) saturate(120%)";
   );
 }
 
-// ── User message bubble (with edit on hover) ─────────────────────
 function UserMessageBubble({ msg, sentMsgBg, textColor, isTemporaryChat, onEdit, themeMode }) {
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -612,9 +596,10 @@ function UserMessageBubble({ msg, sentMsgBg, textColor, isTemporaryChat, onEdit,
   const actualBorder = isHacker ? "none" : (isTemporaryChat ? "1px dashed rgba(239,68,68,0.35)" : "none");
   const actualPadding = isHacker ? "12px 0" : "12px 18px";
   const actualColor = isHacker ? "#00cc00" : textColor;
+  const glassBlur = themeMode === "hacker" ? "blur(2px)" : "blur(8px) saturate(120%)";
 
   return React.createElement("div", {
-    className: "msg-fadein",
+    className: "msg-fadein msg-container",
     style: { alignSelf: "flex-end", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", maxWidth: "75%" },
     onMouseEnter: () => setHovered(true),
     onMouseLeave: () => { setHovered(false); }
@@ -650,11 +635,11 @@ function UserMessageBubble({ msg, sentMsgBg, textColor, isTemporaryChat, onEdit,
             padding: actualPadding, borderRadius: isHacker ? "0" : "18px",
             backgroundColor: actualBg, color: actualColor,
             fontSize: "14px", lineHeight: "1.6",
-           border: actualBorder,
-        backdropFilter: glassBlur,
-        WebkitBackdropFilter: glassBlur,
-        whiteSpace: "pre-wrap", wordBreak: "break-word",
-        fontFamily: isHacker ? "'Courier New', Courier, monospace" : "inherit"
+            border: actualBorder,
+            backdropFilter: glassBlur,
+            WebkitBackdropFilter: glassBlur,
+            whiteSpace: "pre-wrap", wordBreak: "break-word",
+            fontFamily: isHacker ? "'Courier New', Courier, monospace" : "inherit"
           }
         }, isHacker ? `> ${msg.text}` : msg.text),
 
@@ -674,16 +659,15 @@ function UserMessageBubble({ msg, sentMsgBg, textColor, isTemporaryChat, onEdit,
   );
 }
 
-// ── Main App ─────────────────────────────────────────────────────
 function App() {
   const [firebaseReady, setFirebaseReady] = useState(!!window.__nixlai_signIn);
   const [isRecording, setIsRecording] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [currentTheme, setCurrentTheme] = useState("dark");
-  const [themeMode, setThemeMode] = useState("normal"); // 'normal' or 'hacker'
+  const [themeMode, setThemeMode] = useState("normal");
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const [authProvider, setAuthProvider] = useState(null); // 'google' | 'github' | 'telegram'
+  const [authProvider, setAuthProvider] = useState(null);
 
   const [selectedModel, setSelectedModel] = useState("llama-3.3-70b-versatile");
   const [isTemporaryChat, setIsTemporaryChat] = useState(false);
@@ -705,12 +689,10 @@ function App() {
   const [authError, setAuthError] = useState("");
   const [newChatAnim, setNewChatAnim] = useState(false);
 
-  // ── Background choice is remembered across visits (localStorage) ──
-  const [bgMode, setBgMode] = useState(() => { // 'none' | 'custom' | 'rain'
+  const [bgMode, setBgMode] = useState(() => {
     try {
       const mode = localStorage.getItem("nixlai_bgMode") || "none";
       const img = localStorage.getItem("nixlai_customBgUrl");
-      // if "custom" was saved but there's no image, fall back to none
       return mode === "custom" && !img ? "none" : mode;
     } catch (e) { return "none"; }
   });
@@ -718,7 +700,7 @@ function App() {
     try { return localStorage.getItem("nixlai_customBgUrl"); }
     catch (e) { return null; }
   });
-  const [customBgTone, setCustomBgTone] = useState("dark"); // 'dark' | 'light'
+  const [customBgTone, setCustomBgTone] = useState("dark");
   const bgFileInputRef = useRef(null);
 
   const recognitionRef = useRef(null);
@@ -734,7 +716,6 @@ function App() {
   useMatrixRain(themeMode === "hacker", matrixCanvasRef);
   useRainfall(bgMode === "rain", rainCanvasRef);
 
-  // Save the background choice whenever it changes
   useEffect(() => {
     try { localStorage.setItem("nixlai_bgMode", bgMode); } catch (e) {}
   }, [bgMode]);
@@ -748,12 +729,10 @@ function App() {
     }
   }, [customBgUrl]);
 
-  // Work out if the uploaded background is light or dark
   useEffect(() => {
     if (customBgUrl) detectImageTone(customBgUrl).then(setCustomBgTone);
   }, [customBgUrl]);
 
-  // Apply Hacker overrides to theme variables if hacker mode is active
   const T = themeMode === "hacker" ? {
     bg: "#000000",
     text: "#00ff00",
@@ -776,8 +755,6 @@ function App() {
     sentMsgBg: isDark ? "rgba(79,70,229,0.18)" : "#e2e8f0",
   };
 
-  // ── Text that sits directly on the background adapts to it ──
-  // Dark background (or rainfall) → white text. Light background → dark text.
   const bgTone = bgMode === "rain" ? "dark"
     : (bgMode === "custom" && customBgUrl) ? customBgTone
     : null;
@@ -794,7 +771,6 @@ function App() {
     : bgTone === "light" ? "0 1px 4px rgba(255,255,255,0.5)"
     : "none";
 
-  // ── Half-glassy dark writing bar colors ──
   const barText = themeMode === "hacker" ? T.text : "#f4f4f5";
   const barSub = themeMode === "hacker" ? T.subText : "rgba(255,255,255,0.65)";
   const glassBlur = themeMode === "hacker" ? "blur(2px)" : "blur(8px) saturate(120%)";
@@ -803,7 +779,6 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentChatMessages, isThinking]);
 
-  // Wait for firebase module
   useEffect(() => {
     if (window.__nixlai_signIn) { setFirebaseReady(true); return; }
     const handler = () => setFirebaseReady(true);
@@ -811,29 +786,17 @@ function App() {
     return () => window.removeEventListener("firebase-ready", handler);
   }, []);
 
-  // ── LOCAL "CLOUD SYNC" STORAGE HELPERS ───────────────────────────
-  // Each account (by uid) gets its own history bucket in localStorage,
-  // namespaced under nixlai_sync_<uid>. This is what lets history
-  // "sync" the moment you log into a given account (any device/browser
-  // sharing this storage), and what gets cleared from view on sign-out —
-  // exactly like ChatGPT/other AI apps hide your account history once
-  // you're signed out, rather than mixing it with guest chats.
   const loadSyncedHistory = (uid) => {
     try {
       const raw = localStorage.getItem(`nixlai_sync_${uid}`);
       return raw ? JSON.parse(raw) : [];
     } catch (e) {
-      console.error("Failed to load synced history", e);
       return [];
     }
   };
   const saveSyncedHistory = (uid, chats) => {
     if (!uid) return;
-    try {
-      localStorage.setItem(`nixlai_sync_${uid}`, JSON.stringify(chats));
-    } catch (e) {
-      console.error("Failed to save synced history", e);
-    }
+    try { localStorage.setItem(`nixlai_sync_${uid}`, JSON.stringify(chats)); } catch (e) {}
   };
 
   useEffect(() => {
@@ -845,8 +808,6 @@ function App() {
         setUserEmail(user.email);
         setUserPhoto(user.photoURL);
         setIsUserLoggedIn(true);
-
-        // ── Sync starts: pull this account's saved chat history in ──
         currentUidRef.current = user.uid;
         const synced = loadSyncedHistory(user.uid);
         setHistoryChats(synced);
@@ -854,10 +815,6 @@ function App() {
         setCurrentChatMessages([]);
         setChatCount(0);
       } else {
-        // ── Signed out: drop the account's history from view ──
-        // (it stays saved under that uid in storage so it comes back
-        // next time that same account logs back in — it's just not
-        // shown while logged out, same as other AI apps.)
         currentUidRef.current = null;
         setRealName("Guest User"); setNickname("Chief");
         setUserEmail(""); setUserPhoto(null); setIsUserLoggedIn(false);
@@ -871,8 +828,6 @@ function App() {
     return () => unsub && unsub();
   }, [firebaseReady]);
 
-  // Keep the synced bucket for the logged-in account up to date whenever
-  // the history list changes (new chat saved, existing chat updated).
   useEffect(() => {
     if (!currentUidRef.current || isTemporaryChat) return;
     saveSyncedHistory(currentUidRef.current, historyChats);
@@ -896,17 +851,12 @@ function App() {
       await window.__nixlai_signIn();
       setAuthProvider("google");
     } catch (e) {
-      console.error(e);
       if (e.code === "auth/popup-blocked") setAuthError("Popup was blocked. Please allow popups for this site.");
       else if (e.code === "auth/cancelled-popup-request" || e.code === "auth/popup-closed-by-user") setAuthError("");
       else setAuthError("Sign-in failed: " + (e.message || e.code));
     }
   };
 
-  // ── GitHub sign-in (Firebase OAuth provider, same flow as Google) ──
-  // Requires: enable GitHub in Firebase Console → Authentication → Sign-in method,
-  // and register an OAuth app at github.com/settings/developers with the
-  // callback URL Firebase gives you.
   const handleGithubSignIn = async () => {
     setAuthError("");
     if (!window.__nixlai_signInGithub) { setAuthError("Firebase not ready yet, please wait a moment."); return; }
@@ -914,7 +864,6 @@ function App() {
       await window.__nixlai_signInGithub();
       setAuthProvider("github");
     } catch (e) {
-      console.error(e);
       if (e.code === "auth/popup-blocked") setAuthError("Popup was blocked. Please allow popups for this site.");
       else if (e.code === "auth/cancelled-popup-request" || e.code === "auth/popup-closed-by-user") setAuthError("");
       else if (e.code === "auth/account-exists-with-different-credential") setAuthError("An account already exists with this email using a different sign-in method.");
@@ -922,15 +871,6 @@ function App() {
     }
   };
 
-  // ── Telegram sign-in ────────────────────────────────────────────
-  // Telegram has no OAuth popup like Google/GitHub — it uses the Telegram
-  // Login Widget, which calls back with a user object + hash that MUST be
-  // verified server-side against your bot token before you trust it.
-  // This loads the widget and expects a backend at /api/telegram-auth that:
-  //   1. Verifies the hash (HMAC-SHA256 with your bot token)
-  //   2. Mints a Firebase custom token for that user
-  //   3. Returns { customToken }
-  // Set TELEGRAM_BOT_USERNAME below to your bot's username (no @).
   const TELEGRAM_BOT_USERNAME = "NixlaiLoginBot";
 
   useEffect(() => {
@@ -955,7 +895,6 @@ function App() {
           throw new Error("No custom token returned.");
         }
       } catch (e) {
-        console.error(e);
         setAuthError("Telegram sign-in failed: " + e.message + " (requires a backend at /api/telegram-auth — see comments in code).");
       }
     };
@@ -1007,8 +946,6 @@ function App() {
 
   const triggerFileExplorer = (mode) => { setActiveInputMode(mode); fileInputRef.current?.click(); setIsAttachMenuOpen(false); };
 
-  // Uploaded background images are shrunk (max 1920px wide, JPEG) before
-  // saving, because localStorage only holds ~5 MB.
   const handleBgFileChange = (e) => {
     const f = e.target.files[0];
     if (f) {
@@ -1062,7 +999,6 @@ function App() {
         throw new Error(data.error?.message || "Invalid response format");
       }
     } catch (err) {
-      console.error(err);
       setCurrentChatMessages(p => [...p, { id: Date.now() + 1, text: `⚠️ Sorry i am unavailable right now pls try again later: ${err.message}`, sender: "ai" }]);
     } finally {
       setIsThinking(false);
@@ -1109,39 +1045,31 @@ function App() {
     return () => document.removeEventListener("mousedown", close);
   }, [isAttachMenuOpen]);
 
-  // Shared style for the header buttons (color adapts to the background)
   const headerBtnStyle = { background: "none", border: "none", cursor: "pointer", color: homeText, textShadow: homeShadow, fontSize: "13px", fontWeight: "500", display: "flex", alignItems: "center", gap: "5px", fontFamily: "inherit", transition: "color 0.3s" };
 
-  // ── Render ───────────────────────────────────────────────────
   return React.createElement("div", {
     className: themeMode === "hacker" ? "hacker-text" : "",
     style: { height: "100vh", width: "100vw", display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: T.bg, color: T.text, position: "relative" }
   },
-    // Matrix rain canvas — sits behind everything, only painted while hacker theme is active
     React.createElement("canvas", { id: "matrix-rain-canvas", ref: matrixCanvasRef }),
-
-    // Rainfall scenery canvas — sits behind everything, only painted while bgMode === "rain"
     React.createElement("canvas", { id: "rain-canvas", ref: rainCanvasRef }),
-
-    // Custom background image layer
     bgMode === "custom" && customBgUrl && React.createElement("div", {
       id: "bg-media-layer",
       style: { backgroundImage: `url(${customBgUrl})` }
     }),
-
     React.createElement("input", { type: "file", ref: bgFileInputRef, onChange: handleBgFileChange, style: { display: "none" }, accept: "image/*" }),
-
     React.createElement("input", { type: "file", ref: fileInputRef, onChange: e => { const f = e.target.files[0]; if (f) setAttachedFile({ name: f.name, type: activeInputMode }); e.target.value = ""; }, style: { display: "none" }, accept: activeInputMode === "image" ? "image/*" : "*/*" }),
 
     // ── HEADER ──
     React.createElement("div", {
+      className: "header-bar",
       style: { padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${T.border}`, flexShrink: 0, position: "relative", zIndex: 1, backgroundColor: themeMode === "hacker" ? "rgba(0,5,0,0.55)" : "transparent", backdropFilter: themeMode === "hacker" ? "blur(2px)" : "none" }
     },
       React.createElement("button", { onClick: () => setIsSettingsOpen(true), style: { ...headerBtnStyle, gap: "6px" } },
         React.createElement("svg", { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2 },
           React.createElement("circle", { cx: "12", cy: "12", r: "3" }),
           React.createElement("path", { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" })
-        ), "Settings"
+        ), React.createElement("span", { className: "header-btn-text" }, "Settings")
       ),
 
       React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" } },
@@ -1149,22 +1077,25 @@ function App() {
           React.createElement("span", { style: { fontSize: "18px", fontWeight: "700", letterSpacing: "0.5px", color: homeText, textShadow: homeShadow, transition: "color 0.3s" } }, "NixlAI"),
           isTemporaryChat && React.createElement("span", { style: { fontSize: "10px", backgroundColor: themeMode === "hacker" ? "#0f0" : "#ef4444", color: themeMode === "hacker" ? "#000" : "white", padding: "2px 7px", borderRadius: "8px", fontWeight: "600" } }, "◉ Temp")
         ),
-        React.createElement("span", { style: { fontSize: "11px", color: homeSub, textShadow: homeShadow, transition: "color 0.3s" } }, "I'm just an AI — I can make mistakes")
+        React.createElement("span", { className: "hide-mobile", style: { fontSize: "11px", color: homeSub, textShadow: homeShadow, transition: "color 0.3s" } }, "I'm just an AI — I can make mistakes")
       ),
 
       React.createElement("div", { style: { display: "flex", gap: "10px" } },
         React.createElement("button", { onClick: handleStartNewChat, style: headerBtnStyle },
-          React.createElement("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }, React.createElement("line", { x1: "12", y1: "5", x2: "12", y2: "19" }), React.createElement("line", { x1: "5", y1: "12", x2: "19", y2: "12" })), "New Chat"
+          React.createElement("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }, React.createElement("line", { x1: "12", y1: "5", x2: "12", y2: "19" }), React.createElement("line", { x1: "5", y1: "12", x2: "19", y2: "12" })), 
+          React.createElement("span", { className: "header-btn-text" }, "New Chat")
         ),
         React.createElement("button", { onClick: () => setIsHistoryOpen(true), style: headerBtnStyle },
-          React.createElement("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { d: "M3 3h18v18H3z" }), React.createElement("path", { d: "M3 9h18" }), React.createElement("path", { d: "M9 21V9" })), "History"
+          React.createElement("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { d: "M3 3h18v18H3z" }), React.createElement("path", { d: "M3 9h18" }), React.createElement("path", { d: "M9 21V9" })), 
+          React.createElement("span", { className: "header-btn-text" }, "History")
         )
       )
     ),
 
     // ── CHAT AREA ──
     React.createElement("div", {
-      style: { flex: 1, padding: "24px 24px 8px", overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", WebkitOverflowScrolling: "touch", position: "relative", zIndex: 1 }
+      className: "chat-area",
+      style: { flex: 1, padding: "24px 24px 8px", overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", position: "relative", zIndex: 1 }
     },
       newChatAnim && (
         themeMode === "hacker"
@@ -1194,10 +1125,10 @@ function App() {
 
     // ── INPUT AREA ──
     React.createElement("div", {
+      className: "input-area",
       style: { padding: "10px 16px 20px", display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, position: "relative", zIndex: 1 }
     },
       React.createElement("div", { ref: inputAreaRef, style: { display: "flex", alignItems: "center", width: "100%", maxWidth: "800px", gap: "10px" } },
-        // Half-glassy dark writing bar
         React.createElement("div", {
           style: {
             flex: 1, display: "flex", flexDirection: "column",
@@ -1215,7 +1146,6 @@ function App() {
             React.createElement("button", { onClick: () => setAttachedFile(null), style: { background: "none", border: "none", cursor: "pointer", color: barSub, fontSize: "14px" } }, "×")
           ),
           React.createElement("div", { style: { display: "flex", alignItems: "center", width: "100%" } },
-            // Attach button
             React.createElement("button", {
               onClick: e => { e.stopPropagation(); setIsAttachMenuOpen(p => !p); },
               title: "Attach file",
@@ -1247,7 +1177,6 @@ function App() {
             }, isRecording ? "■" : "●")
           )
         ),
-        // SEND BUTTON — paper plane
         React.createElement("button", {
           className: "send-btn",
           onClick: handleSendMessage,
@@ -1276,8 +1205,9 @@ function App() {
       onClick: () => setIsSettingsOpen(false)
     },
       React.createElement("div", {
+        className: "sidebar-panel",
         style: {
-          width: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column",
+          width: "100%", maxWidth: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column",
           borderRadius: themeMode === "hacker" ? "0" : "16px", border: `1px solid ${T.border}`, backgroundColor: T.sidebarBg, color: T.text,
           overflow: "hidden", boxShadow: T.shadow,
           transform: isSettingsOpen ? "translateX(0) scale(1)" : "translateX(-28px) scale(0.96)",
@@ -1293,7 +1223,6 @@ function App() {
           React.createElement("button", { onClick: () => setIsSettingsOpen(false), style: { background: "none", border: "none", cursor: "pointer", color: T.subText, fontSize: "18px" } }, "×")
         ),
         React.createElement("div", { className: "sidebar-scroll" },
-          // Creator section
           React.createElement("div", { style: { background: themeMode === "hacker" ? "rgba(0,255,0,0.05)" : "linear-gradient(135deg,rgba(79,70,229,0.1),rgba(124,58,237,0.1))", padding: "14px", borderRadius: themeMode === "hacker" ? "0" : "12px", border: `1px solid ${themeMode === "hacker" ? "#0f0" : "rgba(79,70,229,0.3)"}`, marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#818cf8", marginBottom: "6px" } }, "CREATOR PROFILE"),
             React.createElement("div", { style: { fontSize: "14px", fontWeight: "700", marginBottom: "4px" } }, "WHO MADE ME"),
@@ -1301,7 +1230,6 @@ function App() {
               "TEJASH PANDE is a student and young developer who enjoys exploring technology, coding, and building creative projects."
             )
           ),
-          // Account
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "ACCOUNT INTEGRATION"),
             authError && React.createElement("div", { style: { fontSize: "12px", color: "#ef4444", padding: "8px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", marginBottom: "10px" } }, authError),
@@ -1345,7 +1273,6 @@ function App() {
                   )
                 )
           ),
-          // Identity
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "IDENTITY REGISTRY"),
             React.createElement("label", { style: { fontSize: "10px", color: themeMode === "hacker" ? "#0a0" : "#6b7280", display: "block", marginBottom: "4px" } }, "REAL NAME"),
@@ -1353,51 +1280,43 @@ function App() {
             React.createElement("label", { style: { fontSize: "10px", color: themeMode === "hacker" ? "#0a0" : "#6b7280", display: "block", marginBottom: "4px" } }, "NICKNAME"),
             React.createElement("input", { value: nickname, onChange: e => setNickname(e.target.value), style: { width: "100%", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", padding: "10px", fontSize: "13px", backgroundColor: T.cardBg, color: T.text, fontFamily: "inherit" } })
           ),
-          // Model
-         // Model
-React.createElement("div", { style: { marginBottom: "20px" } },
-  React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "MODEL PROTOCOL"),
-  React.createElement("select", {
-    value: selectedModel,
-    onChange: e => setSelectedModel(e.target.value),
-    style: {
-      width: "100%",
-      border: `1px solid ${T.border}`,
-      borderRadius: themeMode === "hacker" ? "0" : "8px",
-      padding: "10px", fontSize: "13px", fontFamily: "inherit",
-      backgroundColor: themeMode === "hacker" ? "#000000" : (isDark ? "#18181b" : "#ffffff"),
-      color: themeMode === "hacker" ? "#00ff00" : (isDark ? "#f4f4f5" : "#0f172a"),
-      colorScheme: (isDark || themeMode === "hacker") ? "dark" : "light"
-    }
-  },
-    ...[
-      ["llama-3.3-70b-versatile", "Llama 3.3 70B"],
-      ["llama-3.1-8b-instant", "Llama 3.1 8B"],
-      ["mixtral-8x7b-3072", "Mixtral 8x7B"]
-    ].map(([val, label]) =>
-      React.createElement("option", {
-        key: val, value: val,
-        style: {
-          backgroundColor: themeMode === "hacker" ? "#000000" : (isDark ? "#18181b" : "#ffffff"),
-          color: themeMode === "hacker" ? "#00ff00" : (isDark ? "#f4f4f5" : "#0f172a")
-        }
-      }, label)
-    )
-  )
-),
+          React.createElement("div", { style: { marginBottom: "20px" } },
+            React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "MODEL PROTOCOL"),
+            React.createElement("select", {
+              value: selectedModel,
+              onChange: e => setSelectedModel(e.target.value),
+              style: {
+                width: "100%",
+                border: `1px solid ${T.border}`,
+                borderRadius: themeMode === "hacker" ? "0" : "8px",
+                padding: "10px", fontSize: "13px", fontFamily: "inherit",
+                backgroundColor: themeMode === "hacker" ? "#000000" : (isDark ? "#18181b" : "#ffffff"),
+                color: themeMode === "hacker" ? "#00ff00" : (isDark ? "#f4f4f5" : "#0f172a"),
+                colorScheme: (isDark || themeMode === "hacker") ? "dark" : "light"
+              }
+            },
+              ...[
+                ["llama-3.3-70b-versatile", "Llama 3.3 70B"],
+                ["llama-3.1-8b-instant", "Llama 3.1 8B"],
+                ["mixtral-8x7b-3072", "Mixtral 8x7B"]
+              ].map(([val, label]) =>
+                React.createElement("option", {
+                  key: val, value: val,
+                  style: {
+                    backgroundColor: themeMode === "hacker" ? "#000000" : (isDark ? "#18181b" : "#ffffff"),
+                    color: themeMode === "hacker" ? "#00ff00" : (isDark ? "#f4f4f5" : "#0f172a")
+                  }
+                }, label)
+              )
+            )
           ),
-          // System prompt
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "SYSTEM PROMPT"),
             React.createElement("textarea", { value: systemPrompt, onChange: e => setSystemPrompt(e.target.value), rows: 4, style: { width: "100%", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", padding: "10px", fontSize: "13px", backgroundColor: T.cardBg, color: T.text, resize: "none", fontFamily: "inherit" } })
           ),
-          // Visual Theme Section
           React.createElement("div", { style: { marginBottom: bgMode === "none" ? "20px" : "0px", maxHeight: bgMode === "none" ? "300px" : "0px", opacity: bgMode === "none" ? 1 : 0, overflow: "hidden", transition: "all 0.4s ease-in-out" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "VISUAL THEME"),
-
-            // Only show AI image previews if normal mode is on
             themeMode !== "hacker" && React.createElement("div", { style: { display: "flex", gap: "10px", marginBottom: "15px" } },
-              // Light Mode Preview
               React.createElement("div", {
                 onClick: () => setCurrentTheme("light"),
                 style: {
@@ -1411,7 +1330,6 @@ React.createElement("div", { style: { marginBottom: "20px" } },
                 React.createElement("div", { style: { position: "absolute", top: "-10px", right: "-10px", width: "40px", height: "40px", background: "rgba(255, 235, 59, 0.6)", filter: "blur(10px)", borderRadius: "50%" } }),
                 React.createElement("span", { style: { fontSize: "11px", fontWeight: "bold", color: "#333", zIndex: 1 } }, "Light Theme")
               ),
-              // Dark Mode Preview
               React.createElement("div", {
                 onClick: () => setCurrentTheme("dark"),
                 style: {
@@ -1426,8 +1344,6 @@ React.createElement("div", { style: { marginBottom: "20px" } },
                 React.createElement("span", { style: { fontSize: "11px", fontWeight: "bold", color: "#fff", zIndex: 1 } }, "Dark Theme")
               )
             ),
-
-            // Mode Toggle Buttons
             React.createElement("div", { style: { display: "flex", gap: "10px" } },
               React.createElement("button", {
                 onClick: () => setThemeMode("normal"),
@@ -1449,8 +1365,6 @@ React.createElement("div", { style: { marginBottom: "20px" } },
               }, "Hacker Theme")
             )
           ),
-
-          // Background Section
           React.createElement("div", { style: { marginBottom: themeMode !== "hacker" ? "20px" : "0px", maxHeight: themeMode !== "hacker" ? "300px" : "0px", opacity: themeMode !== "hacker" ? 1 : 0, overflow: "hidden", transition: "all 0.4s ease-in-out" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "BACKGROUND"),
             React.createElement("div", { style: { display: "flex", gap: "10px" } },
@@ -1508,8 +1422,9 @@ React.createElement("div", { style: { marginBottom: "20px" } },
       onClick: () => setIsHistoryOpen(false)
     },
       React.createElement("div", {
+        className: "sidebar-panel",
         style: {
-          width: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column",
+          width: "100%", maxWidth: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column",
           borderRadius: themeMode === "hacker" ? "0" : "16px", border: `1px solid ${T.border}`, backgroundColor: T.sidebarBg, color: T.text,
           overflow: "hidden", boxShadow: T.shadow,
           transform: isHistoryOpen ? "translateX(0) scale(1)" : "translateX(28px) scale(0.96)",
@@ -1550,7 +1465,7 @@ React.createElement("div", { style: { marginBottom: "20px" } },
       style: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", zIndex: 99999, display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)" }
     },
       React.createElement("div", {
-        style: { backgroundColor: "#111", padding: "40px", borderRadius: themeMode === "hacker" ? "0" : "16px", border: themeMode === "hacker" ? "1px solid #0f0" : "1px solid #333", textAlign: "center", color: "white", maxWidth: "420px", display: "flex", flexDirection: "column", gap: "30px", boxShadow: "0 20px 40px rgba(0,0,0,0.7)" }
+        style: { backgroundColor: "#111", padding: "40px", borderRadius: themeMode === "hacker" ? "0" : "16px", border: themeMode === "hacker" ? "1px solid #0f0" : "1px solid #333", textAlign: "center", color: "white", width: "calc(100% - 32px)", maxWidth: "420px", display: "flex", flexDirection: "column", gap: "30px", boxShadow: "0 20px 40px rgba(0,0,0,0.7)" }
       },
         React.createElement("h2", { style: { fontSize: "18px", fontWeight: "800", letterSpacing: "1px", margin: 0, lineHeight: "1.4", fontFamily: themeMode === "hacker" ? "'Courier New', Courier, monospace" : "inherit", color: themeMode === "hacker" ? "#0f0" : "white" } }, "ARE YOU SURE YOU WANNA DISCONNECT YOUR SYNC"),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "15px" } },
