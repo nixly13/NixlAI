@@ -1216,10 +1216,10 @@ function App() {
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "ACCOUNT INTEGRATION"),
             authError && React.createElement("div", { style: { fontSize: "12px", color: "#ef4444", padding: "8px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", marginBottom: "10px" } }, authError),
-          React.createElement("div", { ref: telegramContainerRef, style: { display: "flex", justifyContent: "center", padding: "4px 0" } }), 
-            !telegramContainerRef.current?.hasChildNodes?.() && React.createElement("button", { onClick: loadTelegramWidget, className: "oauth-btn", style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : "#229ED9"}`, backgroundColor: themeMode === "hacker" ? "transparent" : "rgba(34,158,217,0.08)", color: themeMode === "hacker" ? "#0f0" : "#229ED9" } }, React.createElement(IconTelegram, { size: 16, color: themeMode === "hacker" ? "#0f0" : "#229ED9" }), "Sign in with Telegram")
-            )
-          ),
+         // Corrected Code
+React.createElement("div", { ref: telegramContainerRef, style: { display: "flex", justifyContent: "center", padding: "4px 0" } }), 
+!telegramContainerRef.current?.hasChildNodes?.() && React.createElement("button", { onClick: loadTelegramWidget, className: "oauth-btn", style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : "#229ED9"}`, backgroundColor: themeMode === "hacker" ? "transparent" : "rgba(34,158,217,0.08)", color: themeMode === "hacker" ? "#0f0" : "#229ED9" } }, React.createElement(IconTelegram, { size: 16, color: themeMode === "hacker" ? "#0f0" : "#229ED9" }), "Sign in with Telegram")
+),
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "IDENTITY REGISTRY"),
             React.createElement("label", { style: { fontSize: "10px", color: themeMode === "hacker" ? "#0a0" : "#6b7280", display: "block", marginBottom: "4px" } }, "REAL NAME"),
