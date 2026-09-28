@@ -868,10 +868,24 @@ function App() {
     recognitionRef.current = r;
   }, []);
 
-  const handleGoogleSignIn = async () => { /* Standard OAuth flow */ };
-  const handleGithubSignIn = async () => { /* Standard OAuth flow */ };
+  const handleGoogleSignIn = async () => { 
+    try {
+      setAuthError("");
+      if(window.__nixlai_signIn) await window.__nixlai_signIn();
+    } catch(err) {
+      setAuthError(err.message);
+    }
+  };
   
-  // FIX: Added the missing loadTelegramWidget function to prevent the render crash
+  const handleGithubSignIn = async () => { 
+    try {
+      setAuthError("");
+      if(window.__nixlai_signInGithub) await window.__nixlai_signInGithub();
+    } catch(err) {
+      setAuthError(err.message);
+    }
+  };
+  
   const loadTelegramWidget = () => { alert("Telegram Login is not fully implemented yet."); };
   
   const TELEGRAM_BOT_USERNAME = "NixlaiLoginBot";
@@ -1216,10 +1230,39 @@ function App() {
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "ACCOUNT INTEGRATION"),
             authError && React.createElement("div", { style: { fontSize: "12px", color: "#ef4444", padding: "8px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", marginBottom: "10px" } }, authError),
-         // Corrected Code
-React.createElement("div", { ref: telegramContainerRef, style: { display: "flex", justifyContent: "center", padding: "4px 0" } }), 
-!telegramContainerRef.current?.hasChildNodes?.() && React.createElement("button", { onClick: loadTelegramWidget, className: "oauth-btn", style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : "#229ED9"}`, backgroundColor: themeMode === "hacker" ? "transparent" : "rgba(34,158,217,0.08)", color: themeMode === "hacker" ? "#0f0" : "#229ED9" } }, React.createElement(IconTelegram, { size: 16, color: themeMode === "hacker" ? "#0f0" : "#229ED9" }), "Sign in with Telegram")
-),
+            
+            isUserLoggedIn ? (
+              React.createElement("button", { 
+                onClick: () => setShowSignOutConfirm(true), 
+                className: "oauth-btn", 
+                style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : "#ef4444"}`, backgroundColor: themeMode === "hacker" ? "transparent" : "rgba(239,68,68,0.08)", color: themeMode === "hacker" ? "#0f0" : "#ef4444" } 
+              }, "Disconnect Sync")
+            ) : (
+              React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } },
+                // Google Button
+                React.createElement("button", { 
+                  onClick: handleGoogleSignIn, 
+                  className: "oauth-btn", 
+                  style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : T.border}`, backgroundColor: themeMode === "hacker" ? "transparent" : T.cardBg, color: T.text } 
+                }, "Sign in with Google"),
+                
+                // GitHub Button
+                React.createElement("button", { 
+                  onClick: handleGithubSignIn, 
+                  className: "oauth-btn", 
+                  style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : T.border}`, backgroundColor: themeMode === "hacker" ? "transparent" : T.cardBg, color: T.text } 
+                }, React.createElement(IconGithub, { size: 16, color: themeMode === "hacker" ? "#0f0" : "currentColor" }), "Sign in with GitHub"),
+                
+                // Telegram Button
+                React.createElement("div", { ref: telegramContainerRef, style: { display: "flex", justifyContent: "center", padding: "4px 0" } }), 
+                !telegramContainerRef.current?.hasChildNodes?.() && React.createElement("button", { 
+                  onClick: loadTelegramWidget, 
+                  className: "oauth-btn", 
+                  style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : "#229ED9"}`, backgroundColor: themeMode === "hacker" ? "transparent" : "rgba(34,158,217,0.08)", color: themeMode === "hacker" ? "#0f0" : "#229ED9" } 
+                }, React.createElement(IconTelegram, { size: 16, color: themeMode === "hacker" ? "#0f0" : "#229ED9" }), "Sign in with Telegram")
+              )
+            )
+          ),
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "IDENTITY REGISTRY"),
             React.createElement("label", { style: { fontSize: "10px", color: themeMode === "hacker" ? "#0a0" : "#6b7280", display: "block", marginBottom: "4px" } }, "REAL NAME"),
@@ -1358,4 +1401,3 @@ root.render(React.createElement(App));
 </script>
 </body>
 </html>
-  
