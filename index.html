@@ -339,6 +339,14 @@ const IconGithub = ({ size = 16, color = "currentColor" }) => (
     React.createElement("path", { d: "M12 .5C5.73.5.98 5.24.98 11.52c0 4.94 3.2 9.13 7.65 10.6.56.1.76-.24.76-.54 0-.26-.01-1.13-.02-2.05-3.11.68-3.77-1.32-3.77-1.32-.51-1.3-1.24-1.64-1.24-1.64-1.02-.7.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15 1 1.71 2.63 1.22 3.27.93.1-.72.39-1.22.7-1.5-2.49-.28-5.1-1.24-5.1-5.53 0-1.22.44-2.22 1.15-3-.11-.28-.5-1.42.11-2.96 0 0 .94-.3 3.08 1.14a10.7 10.7 0 0 1 5.6 0c2.14-1.44 3.08-1.14 3.08-1.14.61 1.54.22 2.68.11 2.96.72.78 1.15 1.78 1.15 3 0 4.3-2.62 5.25-5.11 5.53.4.35.76 1.03.76 2.08 0 1.5-.01 2.71-.01 3.08 0 .3.2.65.77.54A11.03 11.03 0 0 0 23.02 11.5C23.02 5.24 18.27.5 12 .5z" })
   )
 );
+const IconGoogle = ({ size = 16 }) => (
+  React.createElement("svg", { width: size, height: size, viewBox: "0 0 48 48" },
+    React.createElement("path", { fill: "#EA4335", d: "M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" }),
+    React.createElement("path", { fill: "#4285F4", d: "M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" }),
+    React.createElement("path", { fill: "#FBBC05", d: "M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" }),
+    React.createElement("path", { fill: "#34A853", d: "M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" })
+  )
+);
 const IconTelegram = ({ size = 16, color = "#229ED9" }) => (
   React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: color },
     React.createElement("path", { d: "M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.16c-.18 1.9-.96 6.5-1.36 8.62-.17.9-.5 1.2-.82 1.23-.7.06-1.23-.46-1.9-.9-1.06-.7-1.66-1.13-2.69-1.81-.19-.13-.35-.31-.35-.55 0-.19.13-.35.28-.5 1.72-1.58 3.72-3.4 3.86-3.55.06-.06.02-.15-.06-.11-.13.06-2.18 1.38-4.06 2.6-.31.2-.62.31-.98.31-.53 0-1.04-.19-1.42-.35-.55-.24-1.34-.53-1.34-.9 0-.19.24-.36.55-.5 2.14-.98 6.5-2.7 6.87-2.84.85-.32 1.66-.14 1.42.77z" })
@@ -604,7 +612,7 @@ function AiMessageBubble({ msg, cardBg, text, border, isTemporaryChat, onRetry, 
         style: { color: speaking ? (isHacker ? "#fff" : "#818cf8") : btnColor, borderColor: speaking ? (isHacker ? "#fff" : "rgba(129,140,248,0.4)") : "transparent" }
       }, speaking ? React.createElement(IconStopSquare) : React.createElement(IconSpeaker), speaking ? "Stop" : "Speak"),
 
-      // New Metadata Explain Button
+      // Metadata Explain Button
       React.createElement("div", { style: { position: "relative" } },
         React.createElement("button", {
           className: "action-bar-btn", title: "Explain Response Metadata",
@@ -721,7 +729,6 @@ function App() {
   const [systemPrompt, setSystemPrompt] = useState("You are Nixlai AI, a helpful, precise engineering assistant.");
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
   
-  // New States for requested features
   const [activeMode, setActiveMode] = useState("⚡ Nix");
   const [showModeMenu, setShowModeMenu] = useState(false);
   
@@ -765,9 +772,8 @@ function App() {
   const messagesEndRef = useRef(null);
   const matrixCanvasRef = useRef(null);
   const rainCanvasRef = useRef(null);
-  const telegramContainerRef = useRef(null);
   const currentUidRef = useRef(null);
-  const inputElRef = useRef(null); // Ref for actual input element
+  const inputElRef = useRef(null);
 
   const isDark = currentTheme === "dark";
 
@@ -868,30 +874,34 @@ function App() {
     recognitionRef.current = r;
   }, []);
 
-  const handleGoogleSignIn = async () => { 
+  // ── AUTH: Google + GitHub sign-in ──────────────────────────────
+  const handleOAuthSignIn = async (fn, provider) => {
+    setAuthError("");
+    if (!fn) { setAuthError("Sign-in is still loading, try again in a second."); return; }
     try {
-      setAuthError("");
-      if(window.__nixlai_signIn) await window.__nixlai_signIn();
-    } catch(err) {
-      setAuthError(err.message);
+      await fn();
+      setAuthProvider(provider);
+      setIsSettingsOpen(false);
+    } catch (e) {
+      if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
+      if (e.code === "auth/account-exists-with-different-credential") {
+        setAuthError("An account with this email already exists using a different sign-in method. Try the other one.");
+      } else if (e.code === "auth/popup-blocked") {
+        setAuthError("Popup was blocked. Allow popups for this site and try again.");
+      } else if (e.code === "auth/unauthorized-domain") {
+        setAuthError("This domain isn't authorized in Firebase. Add it under Authentication → Settings → Authorized domains.");
+      } else {
+        setAuthError(e.message || "Sign-in failed.");
+      }
     }
   };
-  
-  const handleGithubSignIn = async () => { 
-    try {
-      setAuthError("");
-      if(window.__nixlai_signInGithub) await window.__nixlai_signInGithub();
-    } catch(err) {
-      setAuthError(err.message);
-    }
-  };
-  
+  const handleGoogleSignIn = () => handleOAuthSignIn(window.__nixlai_signIn, "google");
+  const handleGithubSignIn = () => handleOAuthSignIn(window.__nixlai_signInGithub, "github");
+
   const loadTelegramWidget = () => { alert("Telegram Login is not fully implemented yet."); };
-  
-  const TELEGRAM_BOT_USERNAME = "NixlaiLoginBot";
 
   const confirmSignOut = () => {
-    if(window.__nixlai_signOut) {
+    if (window.__nixlai_signOut) {
       window.__nixlai_signOut().then(() => { setShowSignOutConfirm(false); setIsSettingsOpen(false); setAuthProvider(null); });
     }
   };
@@ -914,17 +924,58 @@ function App() {
   };
 
   const triggerFileExplorer = (mode) => { setActiveInputMode(mode); fileInputRef.current?.click(); setIsAttachMenuOpen(false); };
-  const handleBgFileChange = (e) => { /* Handle image resize and save */ };
+  const handleBgFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { alert("Please choose an image file."); return; }
+    const reader = new FileReader();
+    reader.onerror = () => alert("Couldn't read that image.");
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => alert("Couldn't load that image.");
+      img.onload = () => {
+        // Shrink the image so it fits in localStorage, trying smaller sizes if needed
+        const attempts = [[1600, 0.8], [1280, 0.75], [960, 0.7], [720, 0.65]];
+        let saved = null;
+        let lastUrl = null;
+        for (const [max, quality] of attempts) {
+          const scale = Math.min(1, max / Math.max(img.width, img.height));
+          const c = document.createElement("canvas");
+          c.width = Math.max(1, Math.round(img.width * scale));
+          c.height = Math.max(1, Math.round(img.height * scale));
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          const dataUrl = c.toDataURL("image/jpeg", quality);
+          lastUrl = dataUrl;
+          try {
+            localStorage.setItem("nixlai_customBgUrl", dataUrl);
+            saved = dataUrl;
+            break;
+          } catch (err) { /* too big, try smaller */ }
+        }
+        if (saved) {
+          setCustomBgUrl(saved);
+          setBgMode("custom");
+        } else {
+          setCustomBgUrl(lastUrl);
+          setBgMode("custom");
+          alert("Your browser couldn't store this wallpaper, so it will reset when you close the page. Try a smaller image.");
+        }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleQuickAction = (action) => {
     let prompt = "";
-    if(action === 'think') prompt = "Help me brainstorm ideas about ";
-    if(action === 'study') prompt = "Explain the concept of ";
-    if(action === 'code') prompt = "Write a script to ";
-    if(action === 'write') prompt = "Draft an essay or email about ";
-    if(action === 'research') prompt = "Find detailed information on ";
+    if (action === 'think') prompt = "Help me brainstorm ideas about ";
+    if (action === 'study') prompt = "Explain the concept of ";
+    if (action === 'code') prompt = "Write a script to ";
+    if (action === 'write') prompt = "Draft an essay or email about ";
+    if (action === 'research') prompt = "Find detailed information on ";
     setInputValue(prompt);
-    if(inputElRef.current) {
+    if (inputElRef.current) {
       inputElRef.current.focus();
     }
   };
@@ -932,13 +983,12 @@ function App() {
   const sendToApi = async (userMsgText, history) => {
     setIsThinking(true);
     
-    // Dynamic System Prompt Based on Personality Mode
     let dynamicSystemPrompt = systemPrompt;
     let delay = 0;
     
     if (activeMode === "🧠 Deep") {
       dynamicSystemPrompt += "\n\n[SYSTEM DIRECTIVE: Deep Mode Active. Take your time, think through the complicated problem thoroughly step-by-step, and provide a highly detailed, comprehensive analysis.]";
-      delay = 1500; // Simulated delay for "Deep" thinking
+      delay = 1500;
     } else if (activeMode === "📚 Study") {
       dynamicSystemPrompt += "\n\n[SYSTEM DIRECTIVE: Study Mode Active. Act as a patient tutor. Explain things step-by-step in the right form. Break down complex topics so they are easy to learn.]";
     } else if (activeMode === "💻 Dev") {
@@ -946,7 +996,6 @@ function App() {
     }
 
     try {
-      // Simulate Deep mode delay if active
       if (delay > 0) await new Promise(r => setTimeout(r, delay));
 
       const res = await fetch("/api/chat", {
@@ -1023,6 +1072,23 @@ function App() {
     return () => document.removeEventListener("mousedown", close);
   }, [isAttachMenuOpen, showModeMenu]);
 
+  const maskEmail = (email) => {
+    if (!email || !email.includes("@")) return "Email hidden";
+    const at = email.lastIndexOf("@");
+    const local = email.slice(0, at);
+    const domain = email.slice(at);
+    if (local.length <= 2) return local[0] + "#" + domain;
+    if (local.length <= 4) return local[0] + "#".repeat(local.length - 1) + domain;
+    return local.slice(0, 2) + "#".repeat(local.length - 4) + local.slice(-2) + domain;
+  };
+
+  const oauthBtnStyle = (color, bg) => ({
+    border: `1px solid ${themeMode === "hacker" ? "#0f0" : color}`,
+    backgroundColor: themeMode === "hacker" ? "transparent" : bg,
+    color: themeMode === "hacker" ? "#0f0" : color,
+    borderRadius: themeMode === "hacker" ? "0" : "8px"
+  });
+
   const headerBtnStyle = { background: "none", border: "none", cursor: "pointer", color: homeText, textShadow: homeShadow, fontSize: "13px", fontWeight: "500", display: "flex", alignItems: "center", gap: "5px", fontFamily: "inherit", transition: "color 0.3s" };
 
   return React.createElement("div", {
@@ -1089,7 +1155,7 @@ function App() {
               isTemporaryChat ? (themeMode === "hacker" ? "> TEMPORARY SESSION ACTIVE [NO_LOGS]" : "◉ Temporary chat — nothing here will be saved.") : (themeMode === "hacker" ? `> TERMINAL READY. AWAITING INPUT, ${nickname.toUpperCase()}...` : `Hey ${nickname} ★ Ask NixlAI anything…`)
             ),
             
-            // QUICK ACTION CARDS (FEATURE 1)
+            // QUICK ACTION CARDS
             !isTemporaryChat && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px", alignItems: "center", animation: "fadeIn 0.5s ease" } },
               React.createElement("div", { style: { fontSize: "12px", color: homeSub, textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold" } }, "What do you want to do?"),
               React.createElement("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center", maxWidth: "600px" } },
@@ -1119,7 +1185,7 @@ function App() {
     },
       React.createElement("div", { ref: inputAreaRef, style: { display: "flex", alignItems: "center", width: "100%", maxWidth: "800px", gap: "10px" } },
         
-        // FEATURE 4: MODE TOGGLE BUTTON (Left of Input Bar)
+        // MODE TOGGLE BUTTON
         React.createElement("div", { style: { position: "relative" } },
           React.createElement("button", {
             className: "send-btn",
@@ -1227,42 +1293,32 @@ function App() {
             React.createElement("div", { style: { fontSize: "14px", fontWeight: "700", marginBottom: "4px" } }, "WHO MADE ME"),
             React.createElement("div", { style: { fontSize: "13px", lineHeight: "1.5", opacity: 0.9 } }, "TEJASH PANDE is a student and young developer who enjoys exploring technology, coding, and building creative projects.")
           ),
+
+          // ── ACCOUNT INTEGRATION (Google + GitHub + Telegram) ──
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "ACCOUNT INTEGRATION"),
             authError && React.createElement("div", { style: { fontSize: "12px", color: "#ef4444", padding: "8px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", marginBottom: "10px" } }, authError),
-            
-            isUserLoggedIn ? (
-              React.createElement("button", { 
-                onClick: () => setShowSignOutConfirm(true), 
-                className: "oauth-btn", 
-                style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : "#ef4444"}`, backgroundColor: themeMode === "hacker" ? "transparent" : "rgba(239,68,68,0.08)", color: themeMode === "hacker" ? "#0f0" : "#ef4444" } 
-              }, "Disconnect Sync")
-            ) : (
-              React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } },
-                // Google Button
-                React.createElement("button", { 
-                  onClick: handleGoogleSignIn, 
-                  className: "oauth-btn", 
-                  style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : T.border}`, backgroundColor: themeMode === "hacker" ? "transparent" : T.cardBg, color: T.text } 
-                }, "Sign in with Google"),
-                
-                // GitHub Button
-                React.createElement("button", { 
-                  onClick: handleGithubSignIn, 
-                  className: "oauth-btn", 
-                  style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : T.border}`, backgroundColor: themeMode === "hacker" ? "transparent" : T.cardBg, color: T.text } 
-                }, React.createElement(IconGithub, { size: 16, color: themeMode === "hacker" ? "#0f0" : "currentColor" }), "Sign in with GitHub"),
-                
-                // Telegram Button
-                React.createElement("div", { ref: telegramContainerRef, style: { display: "flex", justifyContent: "center", padding: "4px 0" } }), 
-                !telegramContainerRef.current?.hasChildNodes?.() && React.createElement("button", { 
-                  onClick: loadTelegramWidget, 
-                  className: "oauth-btn", 
-                  style: { border: `1px solid ${themeMode === "hacker" ? "#0f0" : "#229ED9"}`, backgroundColor: themeMode === "hacker" ? "transparent" : "rgba(34,158,217,0.08)", color: themeMode === "hacker" ? "#0f0" : "#229ED9" } 
-                }, React.createElement(IconTelegram, { size: 16, color: themeMode === "hacker" ? "#0f0" : "#229ED9" }), "Sign in with Telegram")
-              )
-            )
+
+            isUserLoggedIn
+              ? React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } },
+                  React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", padding: "10px", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", backgroundColor: T.cardBg } },
+                    userPhoto
+                      ? React.createElement("img", { src: userPhoto, alt: "Profile", referrerPolicy: "no-referrer", style: { width: 36, height: 36, borderRadius: themeMode === "hacker" ? "0" : "50%", objectFit: "cover", flexShrink: 0 } })
+                      : React.createElement("div", { style: { width: 36, height: 36, borderRadius: themeMode === "hacker" ? "0" : "50%", background: themeMode === "hacker" ? "#0f0" : "#4f46e5", color: themeMode === "hacker" ? "#000" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "15px", flexShrink: 0 } }, ((userEmail || realName || "?")[0] || "?").toUpperCase()),
+                    React.createElement("div", { style: { fontSize: "13px", fontWeight: "600", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, maskEmail(userEmail))
+                  ),
+                  React.createElement("button", { onClick: () => setShowSignOutConfirm(true), className: "oauth-btn", style: oauthBtnStyle("#ef4444", "rgba(239,68,68,0.08)") }, "Disconnect Sync")
+                )
+              : React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } },
+                  React.createElement("button", { onClick: handleGoogleSignIn, className: "oauth-btn", style: oauthBtnStyle(isDark ? "#f4f4f5" : "#0f172a", "rgba(128,128,128,0.08)") },
+                    React.createElement(IconGoogle, { size: 16 }), "Sign in with Google"),
+                  React.createElement("button", { onClick: handleGithubSignIn, className: "oauth-btn", style: oauthBtnStyle(isDark ? "#f4f4f5" : "#0f172a", "rgba(128,128,128,0.08)") },
+                    React.createElement(IconGithub, { size: 16 }), "Sign in with GitHub"),
+                  React.createElement("button", { onClick: loadTelegramWidget, className: "oauth-btn", style: oauthBtnStyle("#229ED9", "rgba(34,158,217,0.08)") },
+                    React.createElement(IconTelegram, { size: 16, color: themeMode === "hacker" ? "#0f0" : "#229ED9" }), "Sign in with Telegram")
+                )
           ),
+
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "IDENTITY REGISTRY"),
             React.createElement("label", { style: { fontSize: "10px", color: themeMode === "hacker" ? "#0a0" : "#6b7280", display: "block", marginBottom: "4px" } }, "REAL NAME"),
@@ -1276,7 +1332,7 @@ function App() {
               ...[["llama-3.3-70b-versatile", "Llama 3.3 70B"], ["llama-3.1-8b-instant", "Llama 3.1 8B"], ["mixtral-8x7b-3072", "Mixtral 8x7B"]].map(([val, label]) => React.createElement("option", { key: val, value: val, style: { backgroundColor: themeMode === "hacker" ? "#000000" : (isDark ? "#18181b" : "#ffffff"), color: themeMode === "hacker" ? "#00ff00" : (isDark ? "#f4f4f5" : "#0f172a") } }, label))
             ),
             
-            // FEATURE 3: MEMORY VAULT BUTTON
+            // MEMORY VAULT BUTTON
             React.createElement("button", {
               onClick: () => { setIsMemoryOpen(true); setIsSettingsOpen(false); },
               style: { marginTop: "14px", width: "100%", padding: "10px", border: themeMode === "hacker" ? "1px solid #0f0" : `1px solid #4f46e5`, borderRadius: themeMode === "hacker" ? "0" : "8px", backgroundColor: themeMode === "hacker" ? "transparent" : "rgba(79,70,229,0.1)", color: themeMode === "hacker" ? "#0f0" : "#818cf8", fontSize: "12px", cursor: "pointer", fontFamily: "inherit", fontWeight: "bold" }
@@ -1301,7 +1357,7 @@ function App() {
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "BACKGROUND"),
             React.createElement("div", { style: { display: "flex", gap: "10px" } },
               React.createElement("div", { onClick: () => setBgMode("none"), className: "bg-option-card", style: { border: bgMode === "none" ? "2px solid #4f46e5" : `1px solid ${T.border}`, background: T.cardBg || "rgba(128,128,128,0.08)", color: T.subText } }, "None"),
-              React.createElement("div", { onClick: () => { setBgMode("custom"); bgFileInputRef.current?.click(); }, className: "bg-option-card", style: { border: bgMode === "custom" ? "2px solid #4f46e5" : `1px solid ${T.border}`, backgroundImage: bgMode === "custom" && customBgUrl ? `url(${customBgUrl})` : "none", backgroundSize: "cover", backgroundPosition: "center", background: bgMode === "custom" && customBgUrl ? undefined : "linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.15))", color: bgMode === "custom" && customBgUrl ? "#fff" : T.text, textShadow: bgMode === "custom" && customBgUrl ? "0 1px 3px rgba(0,0,0,0.8)" : "none" } }, "Add Your Own"),
+              React.createElement("div", { onClick: () => { if (customBgUrl) setBgMode("custom"); else bgFileInputRef.current?.click(); }, className: "bg-option-card", style: { border: bgMode === "custom" ? "2px solid #4f46e5" : `1px solid ${T.border}`, backgroundImage: bgMode === "custom" && customBgUrl ? `url(${customBgUrl})` : "none", backgroundSize: "cover", backgroundPosition: "center", background: bgMode === "custom" && customBgUrl ? undefined : "linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.15))", color: bgMode === "custom" && customBgUrl ? "#fff" : T.text, textShadow: bgMode === "custom" && customBgUrl ? "0 1px 3px rgba(0,0,0,0.8)" : "none" } }, "Add Your Own"),
               React.createElement("div", { onClick: () => setBgMode("rain"), className: "bg-option-card", style: { border: bgMode === "rain" ? "2px solid #4f46e5" : `1px solid ${T.border}`, background: "linear-gradient(180deg, #0f172a, #1e293b)", color: "#aed6f1", overflow: "hidden" } }, React.createElement("div", { style: { position: "absolute", inset: 0, opacity: 0.5, background: "repeating-linear-gradient(100deg, transparent 0 6px, rgba(174,214,241,0.5) 6px 7px)" } }), React.createElement("span", { style: { position: "relative", zIndex: 1 } }, "Rainfall"))
             ),
             bgMode === "custom" && React.createElement("button", { onClick: () => bgFileInputRef.current?.click(), style: { marginTop: "8px", width: "100%", padding: "8px", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "6px", background: "transparent", color: T.text, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" } }, "Change Image")
@@ -1330,7 +1386,7 @@ function App() {
       )
     ),
 
-    // ── FEATURE 3: MEMORY VAULT MODAL ──
+    // ── MEMORY VAULT MODAL ──
     isMemoryOpen && React.createElement("div", {
       style: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 100000, display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)" },
       onClick: () => setIsMemoryOpen(false)
