@@ -520,11 +520,12 @@ function AiMessageBubble({ msg, cardBg, text, border, isTemporaryChat, onRetry, 
     window.speechSynthesis.speak(u);
   };
 
-  const btnColor = isHacker ? "#0f0" : text;
-  const actualBg = isHacker ? "transparent" : cardBg;
-  const actualBorder = isHacker ? "none" : (isTemporaryChat ? "1px dashed rgba(239,68,68,0.35)" : `1px solid ${border}`);
-  const actualPadding = isHacker ? "12px 0" : "12px 18px";
-  const actualColor = isHacker ? "#0f0" : text;
+ const btnColor = isHacker ? "#0f0" : "#f4f4f5";
+const actualBg = isHacker ? "transparent" : "rgba(15,23,42,0.45)";
+const actualBorder = isHacker ? "none" : (isTemporaryChat ? "1px dashed rgba(239,68,68,0.35)" : "1px solid rgba(255,255,255,0.15)");
+const actualPadding = isHacker ? "12px 0" : "12px 18px";
+const actualColor = isHacker ? "#0f0" : "#f4f4f5";
+const glassBlur = isHacker ? "none" : "blur(8px) saturate(120%)";
 
   return React.createElement("div", {
     className: "msg-fadein",
@@ -649,9 +650,11 @@ function UserMessageBubble({ msg, sentMsgBg, textColor, isTemporaryChat, onEdit,
             padding: actualPadding, borderRadius: isHacker ? "0" : "18px",
             backgroundColor: actualBg, color: actualColor,
             fontSize: "14px", lineHeight: "1.6",
-            border: actualBorder,
-            whiteSpace: "pre-wrap", wordBreak: "break-word",
-            fontFamily: isHacker ? "'Courier New', Courier, monospace" : "inherit"
+           border: actualBorder,
+        backdropFilter: glassBlur,
+        WebkitBackdropFilter: glassBlur,
+        whiteSpace: "pre-wrap", wordBreak: "break-word",
+        fontFamily: isHacker ? "'Courier New', Courier, monospace" : "inherit"
           }
         }, isHacker ? `> ${msg.text}` : msg.text),
 
