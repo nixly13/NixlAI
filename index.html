@@ -1356,11 +1356,21 @@ function App() {
           // Model
           React.createElement("div", { style: { marginBottom: "20px" } },
             React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "MODEL PROTOCOL"),
-            React.createElement("select", { value: selectedModel, onChange: e => setSelectedModel(e.target.value), style: { width: "100%", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", padding: "10px", fontSize: "13px", backgroundColor: T.cardBg, color: T.text, fontFamily: "inherit" } },
-              React.createElement("option", { value: "llama-3.3-70b-versatile" }, "Llama 3.3 70B"),
-              React.createElement("option", { value: "llama-3.1-8b-instant" }, "Llama 3.1 8B"),
-              React.createElement("option", { value: "mixtral-8x7b-3072" }, "Mixtral 8x7B")
-            )
+           React.createElement("select", { value: selectedModel, onChange: e => setSelectedModel(e.target.value), style: { width: "100%", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", padding: "10px", fontSize: "13px", backgroundColor: T.cardBg, color: T.text, fontFamily: "inherit", colorScheme: (isDark || themeMode === "hacker") ? "dark" : "light" } },
+  ...[
+    ["llama-3.3-70b-versatile", "Llama 3.3 70B"],
+    ["llama-3.1-8b-instant", "Llama 3.1 8B"],
+    ["mixtral-8x7b-3072", "Mixtral 8x7B"]
+  ].map(([val, label]) =>
+    React.createElement("option", {
+      key: val, value: val,
+      style: {
+        backgroundColor: themeMode === "hacker" ? "#000000" : (isDark ? "#18181b" : "#ffffff"),
+        color: themeMode === "hacker" ? "#00ff00" : (isDark ? "#f4f4f5" : "#0f172a")
+      }
+    }, label)
+  )
+)
           ),
           // System prompt
           React.createElement("div", { style: { marginBottom: "20px" } },
