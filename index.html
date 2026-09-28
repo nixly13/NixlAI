@@ -642,8 +642,20 @@ function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [authError, setAuthError] = useState("");
   const [newChatAnim, setNewChatAnim] = useState(false);
-  const [bgMode, setBgMode] = useState("none"); // 'none' | 'custom' | 'rain'
-  const [customBgUrl, setCustomBgUrl] = useState(null);
+
+  // ── Background choice is remembered across visits (localStorage) ──
+  const [bgMode, setBgMode] = useState(() => { // 'none' | 'custom' | 'rain'
+    try {
+      const mode = localStorage.getItem("nixlai_bgMode") || "none";
+      const img = localStorage.getItem("nixlai_customBgUrl");
+      // if "custom" was saved but there's no image, fall back to none
+      return mode === "custom" && !img ? "none" : mode;
+    } catch (e) { return "none"; }
+  });
+  const [customBgUrl, setCustomBgUrl] = useState(() => {
+    try { return localStorage.getItem("nixlai_customBgUrl"); }
+    catch (e) { return null; }
+  });
   const bgFileInputRef = useRef(null);
 
   const recognitionRef = useRef(null);
@@ -658,6 +670,20 @@ function App() {
 
   useMatrixRain(themeMode === "hacker", matrixCanvasRef);
   useRainfall(bgMode === "rain", rainCanvasRef);
+
+  // Save the background choice whenever it changes
+  useEffect(() => {
+    try { localStorage.setItem("nixlai_bgMode", bgMode); } catch (e) {}
+  }, [bgMode]);
+
+  useEffect(() => {
+    try {
+      if (customBgUrl) localStorage.setItem("nixlai_customBgUrl", customBgUrl);
+      else localStorage.removeItem("nixlai_customBgUrl");
+    } catch (e) {
+      console.warn("Background image too large to save", e);
+    }
+  }, [customBgUrl]);
   
   // Apply Hacker overrides to theme variables if hacker mode is active
   const T = themeMode === "hacker" ? {
@@ -888,11 +914,26 @@ function App() {
 
   const triggerFileExplorer = (mode) => { setActiveInputMode(mode); fileInputRef.current?.click(); setIsAttachMenuOpen(false); };
 
+  // Uploaded background images are shrunk (max 1920px wide, JPEG) before
+  // saving, because localStorage only holds ~5 MB.
   const handleBgFileChange = (e) => {
     const f = e.target.files[0];
     if (f) {
       const reader = new FileReader();
-      reader.onload = () => { setCustomBgUrl(reader.result); setBgMode("custom"); };
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const maxW = 1920;
+          const scale = Math.min(1, maxW / img.width);
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+          setCustomBgUrl(canvas.toDataURL("image/jpeg", 0.8));
+          setBgMode("custom");
+        };
+        img.src = reader.result;
+      };
       reader.readAsDataURL(f);
     }
     e.target.value = "";
