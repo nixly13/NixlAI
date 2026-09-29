@@ -11,6 +11,8 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, signInWithPopup, signInWithCustomToken, GoogleAuthProvider, GithubAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCnavvxwXRc7ewTNIiFYx_YPdFwxJTBlEc",
@@ -35,6 +37,35 @@
     window.__nixlai_signInWithCustomToken = (token) => signInWithCustomToken(auth, token);
     window.__nixlai_signOut = () => signOut(auth);
     window.__nixlai_onAuthStateChanged = (cb) => onAuthStateChanged(auth, cb);
+
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    const urlCache = {};
+
+    window.__nixlai_saveChats = async (uid, chats) => {
+      for (const c of chats) {
+        const messages = [];
+        for (const m of c.messages) {
+          if (m.image && m.image.startsWith("data:")) {
+            if (!urlCache[m.id]) {
+              const r = ref(storage, `users/${uid}/images/${m.id}.png`);
+              await uploadString(r, m.image, "data_url");
+              urlCache[m.id] = await getDownloadURL(r);
+            }
+            messages.push({ ...m, image: urlCache[m.id] });
+          } else {
+            messages.push(m);
+          }
+        }
+        await setDoc(doc(db, "users", uid, "chats", String(c.id)), { ...c, messages });
+      }
+    };
+
+    window.__nixlai_loadChats = async (uid) => {
+      const snap = await getDocs(collection(db, "users", uid, "chats"));
+      return snap.docs.map(d => d.data()).sort((a, b) => b.id - a.id);
+    };
+
     window.dispatchEvent(new Event("firebase-ready"));
   </script>
   <style>
@@ -848,14 +879,15 @@ function App() {
     return () => window.removeEventListener("firebase-ready", handler);
   }, []);
 
-  const loadSyncedHistory = (uid) => {
-    try { const raw = localStorage.getItem(`nixlai_sync_${uid}`); return raw ? JSON.parse(raw) : []; }
-    catch (e) { return []; }
-  };
-  const saveSyncedHistory = (uid, chats) => {
-    if (!uid) return;
-    try { localStorage.setItem(`nixlai_sync_${uid}`, JSON.stringify(chats)); } catch (e) {}
-  };
+  // ── Cloud sync: auto-save chat history to Firestore (debounced) ──
+  useEffect(() => {
+    const uid = currentUidRef.current;
+    if (!isUserLoggedIn || !uid || historyChats.length === 0) return;
+    const t = setTimeout(() => {
+      window.__nixlai_saveChats(uid, historyChats).catch(console.error);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [historyChats, isUserLoggedIn]);
 
   useEffect(() => {
     if (!firebaseReady || !window.__nixlai_onAuthStateChanged) return;
@@ -864,7 +896,11 @@ function App() {
         setRealName(user.displayName || "Google User"); setNickname((user.displayName || "Google User").split(" ")[0]);
         setUserEmail(user.email); setUserPhoto(user.photoURL); setIsUserLoggedIn(true);
         currentUidRef.current = user.uid;
-        setHistoryChats(loadSyncedHistory(user.uid)); setActiveChatId(null); setCurrentChatMessages([]); setChatCount(0);
+        setHistoryChats([]);
+        window.__nixlai_loadChats(user.uid).then(chats => {
+          if (currentUidRef.current === user.uid) setHistoryChats(chats);
+        }).catch(console.error);
+        setActiveChatId(null); setCurrentChatMessages([]); setChatCount(0);
       } else {
         currentUidRef.current = null; setRealName("Guest User"); setNickname("Chief");
         setUserEmail(""); setUserPhoto(null); setIsUserLoggedIn(false); setAuthProvider(null);
