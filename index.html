@@ -43,23 +43,18 @@
     const urlCache = {};
 
     window.__nixlai_saveChats = async (uid, chats) => {
-      for (const c of chats) {
-        const messages = [];
-        for (const m of c.messages) {
-          if (m.image && m.image.startsWith("data:")) {
-            if (!urlCache[m.id]) {
-              const r = ref(storage, `users/${uid}/images/${m.id}.png`);
-              await uploadString(r, m.image, "data_url");
-              urlCache[m.id] = await getDownloadURL(r);
-            }
-            messages.push({ ...m, image: urlCache[m.id] });
-          } else {
-            messages.push(m);
-          }
-        }
-        await setDoc(doc(db, "users", uid, "chats", String(c.id)), { ...c, messages });
-      }
-    };
+  for (const c of chats) {
+    try {
+      const messages = c.messages.map(m =>
+        m.image && m.image.startsWith("data:") ? { ...m, image: null } : m
+      );
+      const clean = JSON.parse(JSON.stringify({ ...c, messages }));
+      await setDoc(doc(db, "users", uid, "chats", String(c.id)), clean);
+    } catch (e) {
+      console.error("Save failed for chat", c.id, e);
+    }
+  }
+};
 
     window.__nixlai_loadChats = async (uid) => {
       const snap = await getDocs(collection(db, "users", uid, "chats"));
