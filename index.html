@@ -1,1563 +1,675 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>NixlAI</title>
-  <link rel="icon" type="image/png" href="/icons/logo.png">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>NixlAI</title>
+<link rel="icon" type="image/png" href="/icons/logo.png">
 <link rel="apple-touch-icon" href="/icons/logo.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0a0b14">
+<meta name="theme-color" content="#05060f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="NixlAI">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInWithPopup, signInWithCustomToken, GoogleAuthProvider, GithubAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCnavvxwXRc7ewTNIiFYx_YPdFwxJTBlEc",
-      authDomain: "nixlai.firebaseapp.com",
-      projectId: "nixlai",
-      storageBucket: "nixlai.firebasestorage.app",
-      messagingSenderId: "414717106260",
-      appId: "1:414717106260:web:45d28637e1a86ecdb8f5c1",
-      measurementId: "G-N0JPWW2RCT"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
-    const githubProvider = new GithubAuthProvider();
-
-    window.__nixlai_auth = auth;
-    window.__nixlai_provider = provider;
-    window.__nixlai_githubProvider = githubProvider;
-    window.__nixlai_signIn = () => signInWithPopup(auth, provider);
-    window.__nixlai_signInGithub = () => signInWithPopup(auth, githubProvider);
-    window.__nixlai_signInWithCustomToken = (token) => signInWithCustomToken(auth, token);
-    window.__nixlai_signOut = () => signOut(auth);
-    window.__nixlai_onAuthStateChanged = (cb) => onAuthStateChanged(auth, cb);
-
-    const db = getFirestore(app);
-    const storage = getStorage(app);
-    const urlCache = {};
-
-    window.__nixlai_saveChats = async (uid, chats) => {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithPopup, signInWithCustomToken, GoogleAuthProvider, GithubAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const app = initializeApp({
+  apiKey: "AIzaSyCnavvxwXRc7ewTNIiFYx_YPdFwxJTBlEc",
+  authDomain: "nixlai.firebaseapp.com",
+  projectId: "nixlai",
+  storageBucket: "nixlai.firebasestorage.app",
+  messagingSenderId: "414717106260",
+  appId: "1:414717106260:web:45d28637e1a86ecdb8f5c1",
+  measurementId: "G-N0JPWW2RCT"
+});
+const auth = getAuth(app), db = getFirestore(app);
+const gp = new GoogleAuthProvider(), ghp = new GithubAuthProvider();
+window.__nixlai_auth = auth;
+window.__nixlai_signIn = () => signInWithPopup(auth, gp);
+window.__nixlai_signInGithub = () => signInWithPopup(auth, ghp);
+window.__nixlai_signInWithCustomToken = (t) => signInWithCustomToken(auth, t);
+window.__nixlai_signOut = () => signOut(auth);
+window.__nixlai_onAuthStateChanged = (cb) => onAuthStateChanged(auth, cb);
+window.__nixlai_saveChats = async (uid, chats) => {
   for (const c of chats) {
     try {
-      const messages = c.messages.map(m =>
-        m.image && m.image.startsWith("data:") ? { ...m, image: null } : m
-      );
-      const clean = JSON.parse(JSON.stringify({ ...c, messages }));
-      await setDoc(doc(db, "users", uid, "chats", String(c.id)), clean);
-    } catch (e) {
-      console.error("Save failed for chat", c.id, e);
-    }
+      const messages = c.messages.map(m => m.image && m.image.startsWith("data:") ? { ...m, image: null } : m);
+      await setDoc(doc(db, "users", uid, "chats", String(c.id)), JSON.parse(JSON.stringify({ ...c, messages })));
+    } catch (e) { console.error("Save failed for chat", c.id, e); }
   }
 };
+window.__nixlai_loadChats = async (uid) => {
+  const snap = await getDocs(collection(db, "users", uid, "chats"));
+  return snap.docs.map(d => d.data()).sort((a, b) => b.id - a.id);
+};
+window.dispatchEvent(new Event("firebase-ready"));
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#04050d;--panel:rgba(11,13,34,.78);--line:rgba(99,102,241,.22);--tx:#eceeff;--sub:#8b90b8;--ac:#6366f1;--ac2:#a855f7;--card2:rgba(10,12,36,.7);--ibg:rgba(8,10,32,.88);--modal:#0a0c24;--nt:#cdd0f5;
+--cbg:radial-gradient(circle at 82% 8%,rgba(120,150,255,.5) 0,rgba(60,50,170,.35) 60px,transparent 130px),linear-gradient(180deg,#070824,#04050d 70%);
+--abg:radial-gradient(900px 500px at 70% -10%,rgba(88,60,220,.18),transparent),#04050d}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed;inset:0}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--tx);touch-action:manipulation}
+#root{height:100dvh}
+button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+input,textarea,select{font-family:inherit;color:inherit}
+:focus{outline:none}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(120,125,200,.3);border-radius:4px}
 
-    window.__nixlai_loadChats = async (uid) => {
-      const snap = await getDocs(collection(db, "users", uid, "chats"));
-      return snap.docs.map(d => d.data()).sort((a, b) => b.id - a.id);
-    };
+.app{height:100dvh;display:flex;flex-direction:column;gap:10px;padding:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--abg);position:relative;z-index:1}
+.top{display:flex;align-items:center;gap:12px;padding:8px 16px;border:1px solid var(--line);border-radius:16px;background:var(--panel);flex-shrink:0}
+.logo{display:flex;align-items:center;gap:10px}
+.logo img{width:34px;height:34px;border-radius:9px;object-fit:cover}
+.brand{font-size:22px;font-weight:800;letter-spacing:.5px}
+.tag{font-size:13px;color:var(--sub);padding-left:14px;border-left:1px solid var(--line)}
+.sp{flex:1}
+.pill{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;background:rgba(99,102,241,.1);font-size:13px;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:#22e58f;box-shadow:0 0 8px #22e58f}
+.ib{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--nt)}
+.ib:hover{background:rgba(99,102,241,.15)}
+.av{width:36px;height:36px;border-radius:50%;object-fit:cover;background:linear-gradient(135deg,var(--ac),var(--ac2));display:flex;align-items:center;justify-content:center;font-weight:700;border:2px solid rgba(80,200,255,.5)}
+.menu-btn{display:none}
 
-    window.dispatchEvent(new Event("firebase-ready"));
-  </script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      width: 100%;
-      height: 100dvh;
-      overflow: hidden;
-      position: fixed;
-      inset: 0;
-    }
-    #root {
-      width: 100%;
-      height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      position: relative;
-    }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; touch-action: manipulation; }
-    
-    /* MOBILE AND TABLET RESPONSIVENESS */
-    @media (max-width: 768px) {
-      .header-btn-text { display: none !important; }
-      .hide-mobile { display: none !important; }
-      .header-bar { padding: 10px 14px !important; }
-      .input-wrapper-container {
-        padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 14px)) !important;
-      }
-      .send-btn { width: 38px !important; height: 38px !important; }
-      .sidebar-panel { width: calc(100% - 32px) !important; max-width: 340px !important; }
-      .msg-container { max-width: 90% !important; }
-      .chat-area { -webkit-overflow-scrolling: touch !important; padding: 14px 12px 6px !important; }
-    }
+.main{flex:1;min-height:0;display:grid;grid-template-columns:240px 1fr 290px;gap:12px}
+.side,.right{display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto}
+.card{border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:16px}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;font-size:15px;color:var(--nt);text-align:left}
+.nav button:hover{background:rgba(99,102,241,.12)}
+.nav button.on{background:linear-gradient(90deg,rgba(99,102,241,.45),rgba(99,102,241,.18));border:1px solid rgba(129,140,248,.5);color:var(--tx)}
+.promo,.quote{position:relative;overflow:hidden;border-radius:16px;border:1px solid var(--line);padding:18px 16px;font-size:14px;line-height:1.5;background:linear-gradient(160deg,rgba(40,30,110,.6),rgba(10,12,40,.9))}
+.promo::after,.quote::after{content:"";position:absolute;right:0;bottom:0;width:70%;height:42px;background:linear-gradient(135deg,transparent 40%,rgba(120,90,255,.5) 41%,rgba(120,90,255,.15))}
+.side .promo{margin-top:auto}
+.h3{font-size:17px;font-weight:700;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:12px;padding:10px 0;font-size:14px}
+.row .k{flex:1}.row .v{color:#7aa2ff;font-weight:600;font-size:13px}
+.rc{display:flex;gap:12px;align-items:center;padding:9px 0;cursor:pointer;width:100%;text-align:left}
+.rc small{display:block;color:var(--sub);font-size:12px;margin-top:2px}
+.rc .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px;font-size:14px}
+.ico{width:34px;height:34px;border-radius:10px;background:rgba(99,102,241,.14);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#aab0ff}
 
-    input:focus, select:focus, textarea:focus, button:focus { outline: none; }
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 4px; }
+.center{position:relative;min-width:0;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--cbg)}
+.mtn{position:absolute;left:0;right:0;top:0;height:300px;opacity:.55;pointer-events:none}
+.scroll{position:relative;flex:1;min-height:0;overflow-y:auto;padding:22px;display:flex;flex-direction:column}
+.hero{margin:auto;width:100%;max-width:820px;display:flex;flex-direction:column;gap:22px;padding-bottom:30px}
+.hero h1{font-size:clamp(26px,4vw,38px);font-weight:800}
+.hero p{font-size:clamp(16px,2vw,21px);color:var(--nt);margin-top:6px}
+.modes{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.mc{padding:16px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card2);text-align:left;display:flex;flex-direction:column;gap:6px;transition:.15s}
+.mc:hover{transform:translateY(-2px);border-color:rgba(129,140,248,.6)}
+.mc.on{border:2px solid #8b5cf6;box-shadow:0 0 22px rgba(139,92,246,.45);background:rgba(60,40,140,.35)}
+.mc b{font-size:15px}.mc small{font-size:11px;color:var(--sub)}
+.msgs{width:100%;max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.msg{display:flex;flex-direction:column;gap:3px;max-width:82%}
+.msg.u{align-self:flex-end;align-items:flex-end}.msg.a{align-self:flex-start}
+.bub{padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;border:1px solid var(--line)}
+.u .bub{background:rgba(99,102,241,.28)}.a .bub{background:var(--card2)}
+.bub img{display:block;max-width:100%;border-radius:12px;margin-bottom:8px}
+.bub a{font-size:12px;color:#a5b4fc;display:inline-block;margin-bottom:6px}
+.acts{display:flex;gap:2px;opacity:0;transition:.15s}.msg:hover .acts{opacity:1}
+@media(hover:none){.acts{opacity:1}}
+.acts button{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--sub);padding:4px 8px;border-radius:7px}
+.acts button:hover{background:rgba(255,255,255,.08);color:var(--tx)}
+@keyframes bn{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-6px);opacity:1}}
+.td{display:inline-block;width:7px;height:7px;border-radius:50%;background:#818cf8;margin-right:5px;animation:bn 1.2s infinite}
+.td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
 
-    @keyframes nixlai-bounce {
-      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-      40% { transform: translateY(-6px); opacity: 1; }
-    }
-    .nixlai-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: #4f46e5;
-      animation: nixlai-bounce 1.2s infinite ease-in-out;
-      display: inline-block;
-    }
-    .nixlai-dot:nth-child(2) { animation-delay: 0.2s; }
-    .nixlai-dot:nth-child(3) { animation-delay: 0.4s; }
+.inwrap{position:relative;padding:0 22px 8px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.ibox{width:100%;max-width:800px;border:1px solid rgba(129,140,248,.4);border-radius:22px;background:var(--ibg);padding:10px 14px;display:flex;flex-direction:column;gap:6px;position:relative}
+.ibox.temp{border-color:#ef4444}
+.ibox input.t{width:100%;border:none;background:none;font-size:15px;padding:8px 4px}
+.ibox input.t::placeholder{color:#7f85b5}
+.irow{display:flex;align-items:center;gap:4px}
+.irow .ib{width:32px;height:32px}
+.off{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:18px;background:rgba(99,102,241,.14);font-size:13px;font-weight:600;color:var(--nt)}
+.off.on{background:rgba(239,68,68,.2);color:#fca5a5}
+.send{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(124,92,255,.5);color:#fff;margin-left:6px}
+.send:active{transform:scale(.95)}
+.try{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;font-size:13px;color:var(--sub)}
+.chip{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:18px;border:1px solid var(--line);background:var(--card2);color:var(--nt);font-size:12px}
+.chip:hover{border-color:rgba(129,140,248,.6)}
+.foot{text-align:center;font-size:12px;color:#6a6f99;padding:4px 0 10px}
+.pop{position:absolute;bottom:calc(100% + 8px);right:0;min-width:190px;background:var(--modal);border:1px solid var(--line);border-radius:14px;padding:6px;z-index:20;box-shadow:0 12px 30px rgba(0,0,0,.6)}
+.pop button{display:block;width:100%;text-align:left;padding:9px 10px;border-radius:9px;font-size:14px}
+.pop button:hover,.pop button.on{background:rgba(99,102,241,.2)}
+.pop small{display:block;font-size:11px;color:var(--sub)}
+.file{font-size:12px;padding:4px 10px;border-radius:8px;background:rgba(99,102,241,.25);display:flex;justify-content:space-between;align-items:center}
 
-    .action-bar-btn {
-      display: flex; align-items: center; gap: 5px;
-      background: none; border: 1px solid transparent;
-      border-radius: 7px; cursor: pointer;
-      padding: 4px 8px; font-size: 12px; font-weight: 500;
-      transition: background 0.12s, border-color 0.12s, color 0.12s;
-      white-space: nowrap;
-    }
-    .action-bar-btn:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.13); }
-    .action-bar-btn svg { flex-shrink: 0; }
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{width:100%;max-width:480px;max-height:85vh;overflow-y:auto;background:var(--modal);border:1px solid var(--line);border-radius:18px;padding:20px}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:17px;font-weight:700}
+.lab{font-size:11px;color:var(--sub);margin:14px 0 6px;font-weight:700;letter-spacing:.5px}
+.fld{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:14px}
+select.fld{background:var(--modal)}
+.btn{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:rgba(99,102,241,.12);font-size:14px;font-weight:600;margin-top:8px}
+.btn:hover{background:rgba(99,102,241,.25)}.btn.red{color:#fca5a5;border-color:rgba(239,68,68,.4)}
+.err{font-size:12px;color:#fca5a5;background:rgba(239,68,68,.1);padding:8px;border-radius:8px;margin-bottom:8px}
+.mem{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;padding:11px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;font-size:13px;line-height:1.4}
 
-    .user-action-btn {
-      display: flex; align-items: center; gap: 5px;
-      background: none; border: 1px solid transparent;
-      border-radius: 7px; cursor: pointer;
-      padding: 4px 8px; font-size: 12px; font-weight: 500;
-      transition: background 0.12s, border-color 0.12s;
-      white-space: nowrap;
-    }
-    .user-action-btn:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.13); }
-
-    .sidebar-scroll { flex: 1; overflow-y: auto; padding: 20px; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-    .msg-fadein { animation: fadeIn 0.18s ease; }
-
-    .send-btn {
-      width: 42px; height: 42px; border-radius: 50%; border: none;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: transform 0.15s, box-shadow 0.15s;
-      flex-shrink: 0;
-    }
-    .send-btn:hover { transform: scale(1.07); }
-    .send-btn:active { transform: scale(0.96); }
-
-    .glass-input::placeholder { color: rgba(255,255,255,0.55); }
-
-    .sync-btn-option {
-      background: #222; border: 1px solid #444; color: white; padding: 14px 24px;
-      border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s ease;
-      font-size: 14px;
-    }
-    .sync-btn-option:hover {
-      box-shadow: 0 0 20px 8px rgba(0, 150, 255, 0.6);
-      border-color: rgba(0, 150, 255, 0.8);
-    }
-    
-        .quick-action-btn {
-          .hdr-title-row { display: flex; align-items: center; gap: clamp(8px, 2vw, 18px); }
-    .hdr-logo {
-      width: clamp(42px, 7vw, 76px); height: clamp(42px, 7vw, 76px);
-      border-radius: 22%; object-fit: cover; flex-shrink: 0;
-      box-shadow: 0 6px 28px rgba(99,102,241,0.55);
-    }
-    .hdr-name {
-      font-size: clamp(36px, 8vw, 80px); font-weight: 900; letter-spacing: 2px; line-height: 1;
-      background: linear-gradient(90deg, #38bdf8 0%, #6366f1 40%, #a78bfa 70%, #38bdf8 100%);
-      background-size: 200% auto;
-      -webkit-background-clip: text; background-clip: text;
-      -webkit-text-fill-color: transparent; color: transparent;
-      filter: drop-shadow(0 4px 24px rgba(99,102,241,0.6));
-      animation: nixlai-shine 6s linear infinite;
-    }
-    .hdr-name-hacker {
-      background: none; -webkit-text-fill-color: #0f0; color: #0f0;
-      filter: none; text-shadow: 0 0 14px rgba(0,255,0,0.65); animation: none;
-    }
-    @keyframes nixlai-shine { to { background-position: 200% center; } }
-
-    .quick-action-btn {
-      flex: 1 1 240px; max-width: 320px;
-      padding: 34px 20px; border-radius: 22px;
-      font-size: 24px; font-weight: 700;
-      cursor: pointer; transition: all 0.2s ease;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      backdrop-filter: blur(8px);
-    }
-    }
-    .quick-action-btn:hover { transform: translateY(-2px); }
-     
-    @media (max-width: 768px) {
-      .hdr-name { font-size: 34px; letter-spacing: 1px; }
-      .hdr-logo { width: 38px; height: 38px; }
-      .quick-action-btn { flex: 1 1 calc(50% - 10px); max-width: none; padding: 30px 8px; font-size: 20px; }
-    }
-
-
-    @keyframes hacker-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-    .hacker-cursor {
-      display: inline-block; width: 8px; height: 15px;
-      background-color: #0f0; animation: hacker-blink 1s step-end infinite;
-      vertical-align: middle; margin-left: 6px;
-    }
-    .hacker-text { font-family: 'Courier New', Courier, monospace !important; }
-
-    #matrix-rain-canvas {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-      pointer-events: none;
-      display: none;
-    }
-
-    @keyframes newchat-wipe-normal {
-      0%   { opacity: 0; transform: scale(0.98); }
-      12%  { opacity: 1; transform: scale(1); }
-      70%  { opacity: 1; }
-      100% { opacity: 0; }
-    }
-    @keyframes newchat-ring-normal {
-      0%   { transform: translate(-50%,-50%) scale(0.2); opacity: 0.9; }
-      100% { transform: translate(-50%,-50%) scale(14); opacity: 0; }
-    }
-    .newchat-overlay-normal {
-      position: absolute; inset: 0; z-index: 50;
-      display: flex; align-items: center; justify-content: center;
-      pointer-events: none;
-      animation: newchat-wipe-normal 0.9s ease forwards;
-      background: radial-gradient(circle at 50% 50%, rgba(79,70,229,0.18), transparent 60%);
-    }
-    .newchat-ring-normal {
-      position: absolute; top: 50%; left: 50%;
-      width: 24px; height: 24px; border-radius: 50%;
-      border: 2px solid rgba(79,70,229,0.55);
-      animation: newchat-ring-normal 0.8s cubic-bezier(0.2,0.7,0.3,1) forwards;
-    }
-    .newchat-label-normal {
-      position: relative; font-size: 13px; font-weight: 600;
-      color: #818cf8; letter-spacing: 0.3px;
-      opacity: 0; animation: newchat-label-fade 0.9s ease forwards;
-    }
-    @keyframes newchat-label-fade {
-      0% { opacity: 0; transform: translateY(4px); }
-      20% { opacity: 1; transform: translateY(0); }
-      75% { opacity: 1; }
-      100% { opacity: 0; }
-    }
-
-    @keyframes newchat-scan-hacker {
-      0%   { top: -10%; opacity: 1; }
-      100% { top: 110%; opacity: 1; }
-    }
-    @keyframes newchat-fade-hacker {
-      0%   { opacity: 0; }
-      10%  { opacity: 1; }
-      85%  { opacity: 1; }
-      100% { opacity: 0; }
-    }
-    @keyframes newchat-flicker-hacker {
-      0%, 100% { opacity: 1; }
-      45% { opacity: 0.4; }
-      50% { opacity: 1; }
-      55% { opacity: 0.6; }
-      60% { opacity: 1; }
-    }
-    .newchat-overlay-hacker {
-      position: absolute; inset: 0; z-index: 50; overflow: hidden;
-      pointer-events: none; background: #000;
-      animation: newchat-fade-hacker 1s steps(20) forwards;
-    }
-    .newchat-scanline-hacker {
-      position: absolute; left: 0; width: 100%; height: 3px;
-      background: linear-gradient(to bottom, transparent, #0f0, transparent);
-      box-shadow: 0 0 10px 2px rgba(0,255,0,0.7);
-      animation: newchat-scan-hacker 0.85s linear forwards;
-    }
-    .newchat-label-hacker {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-      color: #0f0; font-family: 'Courier New', Courier, monospace;
-      font-size: 13px; letter-spacing: 1px;
-      animation: newchat-flicker-hacker 0.9s steps(6) forwards;
-      white-space: nowrap;
-    }
-
-    #bg-media-layer {
-      position: fixed; inset: 0; z-index: 0;
-      pointer-events: none;
-      background-size: cover; background-position: center; background-repeat: no-repeat;
-    }
-    #rain-canvas {
-      position: fixed; inset: 0; width: 100%; height: 100%;
-      z-index: 0; pointer-events: none; display: none;
-    }
-    #matrix-rain-canvas { z-index: 0; }
-    .bg-option-card {
-      flex: 1; height: 70px; border-radius: 8px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: bold; position: relative; overflow: hidden;
-    }
-
-    .oauth-btn {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      width: 100%; padding: 10px; border-radius: 8px; font-size: 13px;
-      font-weight: bold; cursor: pointer; font-family: inherit;
-      transition: background 0.15s, border-color 0.15s;
-    }
-  </style>
+#fx{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:none}
+#bgl{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;pointer-events:none}
+.app.fx{background:transparent}.fx .center{background:var(--panel)}
+.fx .top,.fx .card,.fx .center{backdrop-filter:blur(8px)}
+.opts{display:flex;gap:8px}
+.opt{flex:1;padding:12px 6px;border-radius:10px;border:1px solid var(--line);font-size:13px;font-weight:600;background:var(--card2)}
+.opt.on{border:2px solid var(--ac);box-shadow:0 0 12px rgba(99,102,241,.4)}
+[data-theme=light]{--bg:#eef0fb;--panel:rgba(255,255,255,.85);--line:rgba(99,102,241,.25);--tx:#14162e;--sub:#5b6088;--card2:rgba(255,255,255,.92);--ibg:#fff;--modal:#fff;--nt:#2c3060;--cbg:linear-gradient(180deg,#f7f8ff,#e8ebfb);--abg:#eef0fb}
+[data-theme=light] .mtn{display:none}
+[data-theme=light] .fld{background:rgba(0,0,0,.04)}
+[data-theme=light] .promo,[data-theme=light] .quote{background:linear-gradient(160deg,#e3e6ff,#f3f4ff);color:var(--tx)}
+[data-theme=light] .mc.on{background:rgba(99,102,241,.15)}
+[data-theme=light] .u .bub{background:rgba(99,102,241,.16)}
+[data-theme=light] .av{color:#fff}
+[data-theme=light] .ibox input.t::placeholder{color:#8b90b8}
+[data-theme=hacker]{--bg:#000;--panel:rgba(0,10,0,.6);--line:#0a4a0a;--tx:#00ff41;--sub:#00a82b;--ac:#00ff41;--card2:rgba(0,20,0,.7);--ibg:rgba(0,12,0,.9);--modal:#000;--nt:#00e03a;--cbg:transparent;--abg:transparent}
+[data-theme=hacker] body{font-family:'Courier New',Courier,monospace}
+[data-theme=hacker] *{border-radius:0!important}
+[data-theme=hacker] .mtn{display:none}
+[data-theme=hacker] .mc span{color:#0f0!important}
+[data-theme=hacker] .send{background:transparent;border:1px solid #0f0;box-shadow:0 0 10px rgba(0,255,0,.4);color:#0f0}
+[data-theme=hacker] .promo,[data-theme=hacker] .quote{background:rgba(0,20,0,.6);color:var(--tx)}
+[data-theme=hacker] .mc.on,[data-theme=hacker] .opt.on,[data-theme=hacker] .nav button.on{background:rgba(0,255,0,.12);border-color:#0f0;box-shadow:none}
+[data-theme=hacker] .u .bub{background:transparent}
+[data-theme=hacker] .av{color:#000;background:#0f0;border-color:#0f0}
+@media(max-width:1100px){.main{grid-template-columns:240px 1fr}.right{display:none}}
+@media(max-width:768px){
+  .main{grid-template-columns:1fr}
+  .menu-btn{display:flex}.tag,.pill{display:none}
+  .side{position:fixed;top:0;bottom:0;left:0;width:270px;z-index:90;padding:14px;background:var(--modal);border-right:1px solid var(--line);transform:translateX(-105%);transition:transform .28s ease}
+  .side.open{transform:none}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80}
+  .modes{grid-template-columns:repeat(3,1fr)}
+  .scroll{padding:14px 12px}.inwrap{padding:0 12px 6px}.msg{max-width:92%}
+}
+</style>
 </head>
 <body>
 <div id="root"></div>
-
 <script>
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef } = React;
+const h = React.createElement;
 
-// ── SVG Icons ────────────────────────────────────────────────────
-const IconPaperPlane = ({ size = 18, color = "white" }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("line", { x1: "22", y1: "2", x2: "11", y2: "13" }),
-    React.createElement("polygon", { points: "22 2 15 22 11 13 2 9 22 2" })
-  )
-);
-const IconCopy = ({ size = 13 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("rect", { x: "9", y: "9", width: "13", height: "13", rx: "2", ry: "2" }),
-    React.createElement("path", { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" })
-  )
-);
-const IconThumbUp = ({ size = 13 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("path", { d: "M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z" }),
-    React.createElement("path", { d: "M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" })
-  )
-);
-const IconThumbDown = ({ size = 13 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("path", { d: "M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z" }),
-    React.createElement("path", { d: "M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" })
-  )
-);
-const IconRefresh = ({ size = 13 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("polyline", { points: "23 4 23 10 17 10" }),
-    React.createElement("path", { d: "M20.49 15a9 9 0 1 1-2.12-9.36L23 10" })
-  )
-);
-const IconCheck = ({ size = 13 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "#22c55e", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("polyline", { points: "20 6 9 17 4 12" })
-  )
-);
-const IconEdit = ({ size = 13 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("path", { d: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" }),
-    React.createElement("path", { d: "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" })
-  )
-);
-const IconSpeaker = ({ size = 13 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("polygon", { points: "11 5 6 9 2 9 2 15 6 15 11 19 11 5" }),
-    React.createElement("path", { d: "M15.54 8.46a5 5 0 0 1 0 7.07" }),
-    React.createElement("path", { d: "M19.07 4.93a10 10 0 0 1 0 14.14" })
-  )
-);
-const IconStopSquare = ({ size = 13 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "currentColor" },
-    React.createElement("rect", { x: "6", y: "6", width: "12", height: "12", rx: "2" })
-  )
-);
-const IconInfo = ({ size = 13 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("circle", { cx: "12", cy: "12", r: "10" }),
-    React.createElement("line", { x1: "12", y1: "16", x2: "12", y2: "12" }),
-    React.createElement("line", { x1: "12", y1: "8", x2: "12.01", y2: "8" })
-  )
-);
-const IconMode = ({ size = 18, color = "white" }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
-    React.createElement("path", { d: "M12 2v20" }),
-    React.createElement("path", { d: "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" })
-  )
-);
-const IconGithub = ({ size = 16, color = "currentColor" }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: color },
-    React.createElement("path", { d: "M12 .5C5.73.5.98 5.24.98 11.52c0 4.94 3.2 9.13 7.65 10.6.56.1.76-.24.76-.54 0-.26-.01-1.13-.02-2.05-3.11.68-3.77-1.32-3.77-1.32-.51-1.3-1.24-1.64-1.24-1.64-1.02-.7.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15 1 1.71 2.63 1.22 3.27.93.1-.72.39-1.22.7-1.5-2.49-.28-5.1-1.24-5.1-5.53 0-1.22.44-2.22 1.15-3-.11-.28-.5-1.42.11-2.96 0 0 .94-.3 3.08 1.14a10.7 10.7 0 0 1 5.6 0c2.14-1.44 3.08-1.14 3.08-1.14.61 1.54.22 2.68.11 2.96.72.78 1.15 1.78 1.15 3 0 4.3-2.62 5.25-5.11 5.53.4.35.76 1.03.76 2.08 0 1.5-.01 2.71-.01 3.08 0 .3.2.65.77.54A11.03 11.03 0 0 0 23.02 11.5C23.02 5.24 18.27.5 12 .5z" })
-  )
-);
-const IconGoogle = ({ size = 16 }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 48 48" },
-    React.createElement("path", { fill: "#EA4335", d: "M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" }),
-    React.createElement("path", { fill: "#4285F4", d: "M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" }),
-    React.createElement("path", { fill: "#FBBC05", d: "M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" }),
-    React.createElement("path", { fill: "#34A853", d: "M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" })
-  )
-);
-const IconTelegram = ({ size = 16, color = "#229ED9" }) => (
-  React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: color },
-    React.createElement("path", { d: "M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.16c-.18 1.9-.96 6.5-1.36 8.62-.17.9-.5 1.2-.82 1.23-.7.06-1.23-.46-1.9-.9-1.06-.7-1.66-1.13-2.69-1.81-.19-.13-.35-.31-.35-.55 0-.19.13-.35.28-.5 1.72-1.58 3.72-3.4 3.86-3.55.06-.06.02-.15-.06-.11-.13.06-2.18 1.38-4.06 2.6-.31.2-.62.31-.98.31-.53 0-1.04-.19-1.42-.35-.55-.24-1.34-.53-1.34-.9 0-.19.24-.36.55-.5 2.14-.98 6.5-2.7 6.87-2.84.85-.32 1.66-.14 1.42.77z" })
-  )
-);
+const P = {
+  sun: "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M12 1v2 M12 21v2 M4.2 4.2l1.4 1.4 M18.4 18.4l1.4 1.4 M1 12h2 M21 12h2 M4.2 19.8l1.4-1.4 M18.4 5.6l1.4-1.4",
+  download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3",
+  home: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
+  lock: "M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4",
+  sliders: "M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6",
+  clock: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
+  bolt: "M13 2L3 14h9l-1 8 10-12h-9z",
+  bulb: "M9 18h6 M10 22h4 M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z",
+  book: "M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z",
+  code: "M16 18l6-6-6-6 M8 6l-6 6 6 6",
+  pen: "M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z",
+  search: "M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M21 21l-4.3-4.3",
+  image: "M3 3h18v18H3z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5L5 21",
+  send: "M22 2L11 13 M22 2l-7 20-4-9-9-4z",
+  plus: "M12 5v14 M5 12h14",
+  clip: "M21.4 11l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5",
+  mic: "M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4",
+  menu: "M3 6h18 M3 12h18 M3 18h18",
+  x: "M18 6L6 18 M6 6l12 12",
+  copy: "M9 9h13v13H9z M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1",
+  refresh: "M23 4v6h-6 M20.5 15a9 9 0 1 1-2.1-9.4L23 10",
+  edit: "M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z",
+  chat: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  brain: "M9.5 2A3.5 3.5 0 0 0 6 5.5 3.5 3.5 0 0 0 3 9c0 1.3.6 2.3 1.5 3A3.5 3.5 0 0 0 6 18.5 3.5 3.5 0 0 0 9.5 22H12V2z M14.5 2A3.5 3.5 0 0 1 18 5.5 3.5 3.5 0 0 1 21 9c0 1.3-.6 2.3-1.5 3a3.5 3.5 0 0 1-1.5 6.5 3.5 3.5 0 0 1-3.5 3.5H12V2z",
+  tool: "M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"
+};
+const Ic = (n, s = 18) => h("svg", { width: s, height: s, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" }, h("path", { d: P[n] }));
 
-const detectImageTone = (url) => new Promise(resolve => {
-  const img = new Image();
-  img.onload = () => {
-    try {
-      const c = document.createElement("canvas");
-      c.width = 40; c.height = 40;
-      const ctx = c.getContext("2d");
-      ctx.drawImage(img, 0, 0, 40, 40);
-      const d = ctx.getImageData(0, 0, 40, 40).data;
-      let sum = 0;
-      for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-      resolve(sum / (d.length / 4) > 140 ? "light" : "dark");
-    } catch (e) { resolve("dark"); }
-  };
-  img.onerror = () => resolve("dark");
-  img.src = url;
-});
+const MODES = [
+  { id: "⚡ Nix", label: "Nix", desc: "Fast & helpful", icon: "bolt" },
+  { id: "🧠 Deep", label: "Think", desc: "Deep analysis", icon: "brain" },
+  { id: "📚 Study", label: "Study", desc: "Step-by-step", icon: "book" },
+  { id: "💻 Dev", label: "Dev", desc: "Code & build", icon: "code" },
+  { id: "📷 Image", label: "Image", desc: "Image generation", icon: "image" }
+];
+const DIRECTIVES = {
+  "🧠 Deep": "\n\n[SYSTEM DIRECTIVE: Deep Mode Active. Take your time, think through the complicated problem thoroughly step-by-step, and provide a highly detailed, comprehensive analysis.]",
+  "📚 Study": "\n\n[SYSTEM DIRECTIVE: Study Mode Active. Act as a patient tutor. Explain things step-by-step in the right form. Break down complex topics so they are easy to learn.]",
+  "💻 Dev": "\n\n[SYSTEM DIRECTIVE: Dev Mode Active. You are an expert software developer. Focus entirely on providing clean, working, efficient code according to the prompt.]"
+};
+const MODELS = [["llama-3.3-70b-versatile", "Llama 3.3 70B"], ["llama-3.1-8b-instant", "Llama 3.1 8B"], ["mixtral-8x7b-3072", "Mixtral 8x7B"]];
 
-function useMatrixRain(active, canvasRef) {
+function useFx(kind, ref) {
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.style.display = active ? "block" : "none";
-    if (!active) return;
-
-    const ctx = canvas.getContext("2d");
-    let animationId = null;
-    let columns = 0;
-    let drops = [];
-    const fontSize = 15;
-    const chars = "アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ$+-*/=%<>[]{}";
-
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      columns = Math.max(1, Math.floor(canvas.width / fontSize));
-      drops = new Array(columns).fill(0).map(() => Math.random() * -50);
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-
-    function draw() {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.font = fontSize + "px 'Courier New', monospace";
-
-      for (let i = 0; i < drops.length; i++) {
-        const char = chars[Math.floor(Math.random() * chars.length)];
-        const x = i * fontSize;
-        const y = drops[i] * fontSize;
-
-        ctx.fillStyle = "#c8ffc8";
-        ctx.fillText(char, x, y);
-        ctx.fillStyle = "rgba(0, 255, 70, 0.75)";
-        ctx.fillText(char, x, y - fontSize);
-
-        if (y > canvas.height && Math.random() > 0.975) drops[i] = 0;
-        drops[i]++;
-      }
-      animationId = requestAnimationFrame(draw);
-    }
-
-    resize();
-    window.addEventListener("resize", resize);
-    draw();
-
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", resize);
+    const cv = ref.current; if (!cv) return;
+    cv.style.display = kind ? "block" : "none";
+    if (!kind) return;
+    const x = cv.getContext("2d"); let id, drops;
+    const fs = 15, chars = "アイウエオカキクケコサシスセソ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ$+-*/=<>[]{}";
+    const size = () => {
+      cv.width = innerWidth; cv.height = innerHeight;
+      if (kind === "matrix") { drops = Array.from({ length: Math.max(1, Math.floor(cv.width / fs)) }, () => Math.random() * -50); x.fillStyle = "#000"; x.fillRect(0, 0, cv.width, cv.height); }
+      else drops = Array.from({ length: Math.floor(cv.width * cv.height / 9000) }, () => ({ x: Math.random() * cv.width, y: Math.random() * cv.height, l: 10 + Math.random() * 20, s: 4 + Math.random() * 6, o: .15 + Math.random() * .35 }));
     };
-  }, [active, canvasRef]);
-}
-
-function useRainfall(active, canvasRef) {
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.style.display = active ? "block" : "none";
-    if (!active) return;
-
-    const ctx = canvas.getContext("2d");
-    let animationId = null;
-    let drops = [];
-
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      const count = Math.floor((canvas.width * canvas.height) / 9000);
-      drops = new Array(count).fill(0).map(() => ({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        len: 10 + Math.random() * 20,
-        speed: 4 + Math.random() * 6,
-        opacity: 0.15 + Math.random() * 0.35
-      }));
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      grad.addColorStop(0, "rgba(15,23,42,0.35)");
-      grad.addColorStop(1, "rgba(30,41,59,0.20)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.strokeStyle = "rgba(174,214,241,0.55)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i < drops.length; i++) {
-        const d = drops[i];
-        ctx.globalAlpha = d.opacity;
-        ctx.beginPath();
-        ctx.moveTo(d.x, d.y);
-        ctx.lineTo(d.x - 2, d.y + d.len);
-        ctx.stroke();
-        d.y += d.speed;
-        d.x -= 0.6;
-        if (d.y > canvas.height) {
-          d.y = -d.len;
-          d.x = Math.random() * canvas.width;
-        }
+    const draw = () => {
+      if (kind === "matrix") {
+        x.fillStyle = "rgba(0,0,0,.08)"; x.fillRect(0, 0, cv.width, cv.height); x.font = fs + "px 'Courier New',monospace";
+        drops.forEach((d, i) => { const c = chars[Math.floor(Math.random() * chars.length)], py = d * fs; x.fillStyle = "#c8ffc8"; x.fillText(c, i * fs, py); x.fillStyle = "rgba(0,255,70,.75)"; x.fillText(c, i * fs, py - fs); if (py > cv.height && Math.random() > .975) drops[i] = 0; drops[i]++; });
+      } else {
+        x.clearRect(0, 0, cv.width, cv.height); x.fillStyle = "rgba(15,23,42,.35)"; x.fillRect(0, 0, cv.width, cv.height); x.strokeStyle = "rgba(174,214,241,.55)";
+        drops.forEach(d => { x.globalAlpha = d.o; x.beginPath(); x.moveTo(d.x, d.y); x.lineTo(d.x - 2, d.y + d.l); x.stroke(); d.y += d.s; d.x -= .6; if (d.y > cv.height) { d.y = -d.l; d.x = Math.random() * cv.width; } });
+        x.globalAlpha = 1;
       }
-      ctx.globalAlpha = 1;
-      animationId = requestAnimationFrame(draw);
-    }
-
-    resize();
-    window.addEventListener("resize", resize);
-    draw();
-
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", resize);
+      id = requestAnimationFrame(draw);
     };
-  }, [active, canvasRef]);
+    size(); addEventListener("resize", size); draw();
+    return () => { cancelAnimationFrame(id); removeEventListener("resize", size); };
+  }, [kind]);
 }
 
-function ThinkingDots({ cardBg, border, themeMode }) {
-  if (themeMode === "hacker") {
-    return React.createElement("div", {
-      style: { alignSelf: "flex-start", padding: "14px 0", display: "flex", alignItems: "center", color: "#0f0", fontFamily: "monospace", fontSize: "14px" }
-    },
-      "> Processing", React.createElement("span", { className: "hacker-cursor" })
-    );
-  }
-  return React.createElement("div", {
-    style: { alignSelf: "flex-start", padding: "14px 18px", borderRadius: "18px", backgroundColor: cardBg, border: `1px solid ${border}`, display: "flex", alignItems: "center", gap: "6px" }
-  },
-    React.createElement("span", { className: "nixlai-dot" }),
-    React.createElement("span", { className: "nixlai-dot" }),
-    React.createElement("span", { className: "nixlai-dot" })
-  );
+function Msg({ m, onRetry, onEdit }) {
+  const [c, setC] = useState(false);
+  const u = m.sender === "user";
+  return h("div", { className: "msg " + (u ? "u" : "a") },
+    h("div", { className: "bub" },
+      m.image && h("img", { src: m.image, alt: "Generated" }),
+      m.image && h("a", { href: m.image, download: "nixlai-image.png" }, "⬇ Download"),
+      m.text),
+    h("div", { className: "acts" },
+      h("button", { onClick: () => navigator.clipboard.writeText(m.text).then(() => { setC(true); setTimeout(() => setC(false), 1400); }) }, Ic("copy", 13), c ? "Copied" : "Copy"),
+      u ? h("button", { onClick: () => { const t = prompt("Edit message", m.text); if (t && t.trim() && t.trim() !== m.text) onEdit(m, t.trim()); } }, Ic("edit", 13), "Edit")
+        : h("button", { onClick: () => onRetry(m) }, Ic("refresh", 13), "Regenerate")));
 }
 
-function AiMessageBubble({ msg, cardBg, text, border, isTemporaryChat, onRetry, themeMode }) {
-  const [hovered, setHovered] = useState(false);
-  const [liked, setLiked] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const [displayedText, setDisplayedText] = useState("");
-  const [showMetadata, setShowMetadata] = useState(false);
-
-  const isHacker = themeMode === "hacker";
-
-  useEffect(() => {
-    if (!isHacker) {
-      setDisplayedText(msg.text);
-      return;
-    }
-    let i = 0;
-    setDisplayedText("");
-    const interval = setInterval(() => {
-      setDisplayedText(prev => msg.text.substring(0, i + 1));
-      i++;
-      if (i >= msg.text.length) clearInterval(interval);
-    }, 15);
-    return () => clearInterval(interval);
-  }, [msg.text, isHacker]);
-
-  useEffect(() => () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); }, []);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(msg.text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-
-  const handleSpeak = () => {
-    if (!window.speechSynthesis) return alert("Text-to-speech isn't supported on this browser.");
-    if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(msg.text);
-    u.lang = "en-US";
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
-    setSpeaking(true);
-    window.speechSynthesis.speak(u);
-  };
-
-  const btnColor = isHacker ? "#0f0" : "#f4f4f5";
-  const actualBg = isHacker ? "transparent" : "rgba(15,23,42,0.45)";
-  const actualBorder = isHacker ? "none" : (isTemporaryChat ? "1px dashed rgba(239,68,68,0.35)" : "1px solid rgba(255,255,255,0.15)");
-  const actualPadding = isHacker ? "12px 0" : "12px 18px";
-  const actualColor = isHacker ? "#0f0" : "#f4f4f5";
-
-  return React.createElement("div", {
-    className: "msg-fadein msg-container",
-    style: { alignSelf: "flex-start", display: "flex", flexDirection: "column", gap: "4px", maxWidth: "75%" },
-    onMouseEnter: () => setHovered(true),
-    onMouseLeave: () => { setHovered(false); setShowMetadata(false); }
-  },
-    React.createElement("div", {
-      style: {
-        padding: actualPadding, borderRadius: isHacker ? "0" : "18px",
-        backgroundColor: actualBg, color: actualColor,
-        fontSize: "14px", lineHeight: "1.6",
-        border: actualBorder,
-        whiteSpace: "pre-wrap", wordBreak: "break-word",
-        fontFamily: isHacker ? "'Courier New', Courier, monospace" : "inherit"
-      }
-    },
-      msg.image && React.createElement("img", {
-        src: msg.image, alt: "Generated image",
-        style: { display: "block", maxWidth: "100%", borderRadius: "12px", marginBottom: displayedText ? "10px" : 0 }
-      }),
-      msg.image && React.createElement("a", {
-        href: msg.image, download: "nixlai-image.png",
-        style: { fontSize: "12px", color: isHacker ? "#0f0" : "#818cf8", display: "inline-block", marginBottom: displayedText ? "8px" : 0 }
-      }, "⬇ Download"),
-      displayedText
-    ),
-    React.createElement("div", {
-      style: {
-        display: "flex", gap: "2px", alignItems: "center", position: "relative",
-        opacity: (hovered || speaking || showMetadata) ? 1 : 0,
-        transition: "opacity 0.15s ease",
-        paddingLeft: "4px", flexWrap: "wrap"
-      }
-    },
-      React.createElement("button", {
-        className: "action-bar-btn", title: copied ? "Copied!" : "Copy",
-        onClick: handleCopy,
-        style: { color: copied ? (isHacker ? "#fff" : "#22c55e") : btnColor }
-      }, copied ? React.createElement(IconCheck) : React.createElement(IconCopy), copied ? "Copied" : "Copy"),
-
-      React.createElement("button", {
-        className: "action-bar-btn", title: "Regenerate",
-        onClick: () => onRetry && onRetry(msg),
-        style: { color: btnColor }
-      }, React.createElement(IconRefresh), "Regenerate"),
-
-      React.createElement("button", {
-        className: "action-bar-btn", title: "Like",
-        onClick: () => setLiked(liked === "like" ? null : "like"),
-        style: { color: liked === "like" ? (isHacker ? "#fff" : "#22c55e") : btnColor, borderColor: liked === "like" ? (isHacker ? "#fff" : "rgba(34,197,94,0.4)") : "transparent" }
-      }, React.createElement(IconThumbUp), "Like"),
-
-      React.createElement("button", {
-        className: "action-bar-btn", title: "Dislike",
-        onClick: () => setLiked(liked === "dislike" ? null : "dislike"),
-        style: { color: liked === "dislike" ? "#ef4444" : btnColor, borderColor: liked === "dislike" ? "rgba(239,68,68,0.4)" : "transparent" }
-      }, React.createElement(IconThumbDown), "Dislike"),
-
-      React.createElement("button", {
-        className: "action-bar-btn", title: speaking ? "Stop" : "Read aloud",
-        onClick: handleSpeak,
-        style: { color: speaking ? (isHacker ? "#fff" : "#818cf8") : btnColor, borderColor: speaking ? (isHacker ? "#fff" : "rgba(129,140,248,0.4)") : "transparent" }
-      }, speaking ? React.createElement(IconStopSquare) : React.createElement(IconSpeaker), speaking ? "Stop" : "Speak"),
-
-      // Metadata Explain Button
-      React.createElement("div", { style: { position: "relative" } },
-        React.createElement("button", {
-          className: "action-bar-btn", title: "Explain Response Metadata",
-          onClick: () => setShowMetadata(!showMetadata),
-          style: { color: showMetadata ? (isHacker ? "#fff" : "#3b82f6") : btnColor, borderColor: showMetadata ? (isHacker ? "#fff" : "rgba(59,130,246,0.4)") : "transparent" }
-        }, React.createElement(IconInfo), "Explain"),
-        showMetadata && React.createElement("div", {
-          style: {
-            position: "absolute", top: "100%", left: 0, marginTop: "6px",
-            backgroundColor: isHacker ? "#000" : "rgba(15,23,42,0.9)",
-            border: isHacker ? "1px solid #0f0" : "1px solid rgba(255,255,255,0.15)",
-            borderRadius: isHacker ? "0" : "12px",
-            padding: "12px", width: "220px", zIndex: 50,
-            boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-            backdropFilter: "blur(8px)"
-          }
-        },
-          React.createElement("div", { style: { fontSize: "11px", fontWeight: "bold", color: isHacker ? "#0f0" : "#94a3b8", marginBottom: "8px", textTransform: "uppercase" } }, "Response Info"),
-          React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", color: isHacker ? "#0a0" : "#f1f5f9", fontFamily: isHacker ? "'Courier New', monospace" : "inherit" } },
-            React.createElement("span", null, "✓ Used your project instructions"),
-            React.createElement("span", null, "✓ Used conversation context"),
-            React.createElement("span", null, "✓ Confidence: ", React.createElement("strong", { style: { color: isHacker ? "#fff" : "#fbbf24" } }, "Medium")),
-            React.createElement("span", null, "✗ No external sources used")
-          )
-        )
-      )
-    )
-  );
-}
-
-function UserMessageBubble({ msg, sentMsgBg, textColor, isTemporaryChat, onEdit, themeMode }) {
-  const [hovered, setHovered] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [editVal, setEditVal] = useState(msg.text);
-  const textareaRef = useRef(null);
-  const isHacker = themeMode === "hacker";
-
-  useEffect(() => {
-    if (editing && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.selectionStart = textareaRef.current.value.length;
-    }
-  }, [editing]);
-
-  const submitEdit = () => {
-    if (editVal.trim() && editVal.trim() !== msg.text) onEdit(msg, editVal.trim());
-    setEditing(false);
-  };
-
-  const actualBg = isHacker ? "transparent" : sentMsgBg;
-  const actualBorder = isHacker ? "none" : (isTemporaryChat ? "1px dashed rgba(239,68,68,0.35)" : "none");
-  const actualPadding = isHacker ? "12px 0" : "12px 18px";
-  const actualColor = isHacker ? "#00cc00" : textColor;
-  const glassBlur = themeMode === "hacker" ? "blur(2px)" : "blur(8px) saturate(120%)";
-
-  return React.createElement("div", {
-    className: "msg-fadein msg-container",
-    style: { alignSelf: "flex-end", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", maxWidth: "75%" },
-    onMouseEnter: () => setHovered(true),
-    onMouseLeave: () => { setHovered(false); }
-  },
-    editing
-      ? React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "6px", width: "100%", minWidth: "240px" } },
-          React.createElement("textarea", {
-            ref: textareaRef, value: editVal, onChange: e => setEditVal(e.target.value),
-            onKeyDown: e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEdit(); } if (e.key === "Escape") setEditing(false); },
-            rows: 3,
-            style: {
-              width: "100%", padding: "10px 14px", borderRadius: "14px",
-              border: `1.5px solid ${isHacker ? "#0f0" : "#4f46e5"}`, backgroundColor: actualBg,
-              color: actualColor, fontSize: "14px", lineHeight: "1.5", resize: "none", fontFamily: isHacker ? "'Courier New', Courier, monospace" : "inherit"
-            }
-          }),
-          React.createElement("div", { style: { display: "flex", gap: "6px", justifyContent: "flex-end" } },
-            React.createElement("button", { onClick: () => setEditing(false), style: { padding: "5px 12px", borderRadius: "7px", border: "1px solid rgba(128,128,128,0.3)", background: "none", color: actualColor, fontSize: "12px", cursor: "pointer" } }, "Cancel"),
-            React.createElement("button", { onClick: submitEdit, style: { padding: "5px 12px", borderRadius: "7px", border: "none", background: isHacker ? "#00cc00" : "#4f46e5", color: isHacker ? "#000" : "white", fontSize: "12px", cursor: "pointer", fontWeight: "bold" } }, "Send")
-          )
-        )
-      : React.createElement("div", {
-          style: {
-            padding: actualPadding, borderRadius: isHacker ? "0" : "18px",
-            backgroundColor: actualBg, color: actualColor, fontSize: "14px", lineHeight: "1.6",
-            border: actualBorder, backdropFilter: glassBlur, WebkitBackdropFilter: glassBlur,
-            whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: isHacker ? "'Courier New', Courier, monospace" : "inherit"
-          }
-        }, isHacker ? `> ${msg.text}` : msg.text),
-    !editing && React.createElement("div", {
-      style: {
-        display: "flex", gap: "2px", justifyContent: "flex-end", opacity: hovered ? 1 : 0, transition: "opacity 0.15s ease", paddingRight: "4px"
-      }
-    },
-      React.createElement("button", { className: "user-action-btn", title: "Edit message", onClick: () => setEditing(true), style: { color: actualColor } }, React.createElement(IconEdit), "Edit")
-    )
-  );
+function Modal({ title, onClose, children }) {
+  return h("div", { className: "ov", onClick: onClose },
+    h("div", { className: "modal", onClick: e => e.stopPropagation() },
+      h("div", { className: "mh" }, title, h("button", { className: "ib", onClick: onClose }, Ic("x", 18))),
+      children));
 }
 
 function App() {
-  const [firebaseReady, setFirebaseReady] = useState(!!window.__nixlai_signIn);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState("dark");
-  const [themeMode, setThemeMode] = useState("normal");
-  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const [authProvider, setAuthProvider] = useState(null);
-
-  const [selectedModel, setSelectedModel] = useState("llama-3.3-70b-versatile");
-  const [isTemporaryChat, setIsTemporaryChat] = useState(false);
+  const [ready, setReady] = useState(!!window.__nixlai_signIn);
+  const [loggedIn, setLoggedIn] = useState(false);
   const [realName, setRealName] = useState("Guest User");
-  const [nickname, setNickname] = useState("Chief");
-  const [userEmail, setUserEmail] = useState("");
-  const [userPhoto, setUserPhoto] = useState(null);
-  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState("You are Nixlai AI, a helpful, precise engineering assistant.");
-  const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
-  
-  const [activeMode, setActiveMode] = useState("⚡ Nix");
-  const [showModeMenu, setShowModeMenu] = useState(false);
-  
-  const [isMemoryOpen, setIsMemoryOpen] = useState(false);
-  const [memories, setMemories] = useState([
+  const [nick, setNick] = useState("Chief");
+  const [email, setEmail] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const [authErr, setAuthErr] = useState("");
+  const [model, setModel] = useState("llama-3.3-70b-versatile");
+  const [sysPrompt, setSysPrompt] = useState("You are Nixlai AI, a helpful, precise engineering assistant.");
+  const [mode, setMode] = useState("⚡ Nix");
+  const [temp, setTemp] = useState(false);
+  const [input, setInput] = useState("");
+  const [file, setFile] = useState(null);
+  const [msgs, setMsgs] = useState([]);
+  const [chats, setChats] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [thinking, setThinking] = useState(false);
+  const [rec, setRec] = useState(false);
+  const [modeMenu, setModeMenu] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const [showSet, setShowSet] = useState(false);
+  const [showAcct, setShowAcct] = useState(false);
+  const [showApp, setShowApp] = useState(false);
+  const [showExp, setShowExp] = useState(false);
+  const ls = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
+  const [theme, setTheme] = useState(() => ls("nixlai_theme", "dark"));
+  const [bgMode, setBgMode] = useState(() => { const m = ls("nixlai_bgMode", "none"); return m === "custom" && !ls("nixlai_customBgUrl", "") ? "none" : m; });
+  const [customBg, setCustomBg] = useState(() => ls("nixlai_customBgUrl", ""));
+  const fxRef = useRef(null), bgRef = useRef(null);
+  const hacker = theme === "hacker";
+  const fxKind = hacker ? "matrix" : bgMode === "rain" ? "rain" : null;
+  const fx = hacker || bgMode === "rain" || (bgMode === "custom" && !!customBg);
+  useFx(fxKind, fxRef);
+  useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("nixlai_theme", theme); } catch (e) {} }, [theme]);
+  useEffect(() => { try { localStorage.setItem("nixlai_bgMode", bgMode); } catch (e) {} }, [bgMode]);
+  const onBgFile = (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    if (!f.type.startsWith("image/")) return alert("Please choose an image file.");
+    const r = new FileReader();
+    r.onload = () => { const im = new Image(); im.onload = () => {
+      let url = "";
+      for (const [mx, q] of [[1600, .8], [1280, .75], [960, .7], [720, .65]]) {
+        const sc = Math.min(1, mx / Math.max(im.width, im.height)), c = document.createElement("canvas");
+        c.width = Math.round(im.width * sc) || 1; c.height = Math.round(im.height * sc) || 1;
+        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); url = c.toDataURL("image/jpeg", q);
+        try { localStorage.setItem("nixlai_customBgUrl", url); break; } catch (err) {}
+      }
+      setCustomBg(url); setBgMode("custom");
+    }; im.src = r.result; };
+    r.readAsDataURL(f);
+  };
+  const exportChat = (fmt) => {
+    if (!msgs.length) return;
+    const md = fmt === "md";
+    const body = msgs.map(m => { const who = m.sender === "user" ? "You" : "NixlAI"; const t = (m.image ? "[image] " : "") + m.text; return md ? `**${who}:** ${t}` : `${who}: ${t}`; }).join("\n\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([(md ? "# NixlAI chat\n\n" : "NixlAI chat\n\n") + body + "\n"], { type: "text/plain;charset=utf-8" }));
+    a.download = `nixlai-chat-${new Date().toISOString().slice(0, 10)}.${fmt}`;
+    a.click(); setShowExp(false);
+  };
+  const [showMem, setShowMem] = useState(false);
+  const [showHist, setShowHist] = useState(false);
+  const [mems, setMems] = useState([
     { id: 1, text: "User prefers concise explanations" },
     { id: 2, text: "User is learning software programming and development" },
     { id: 3, text: "User's current project: NixlAI React Application" },
     { id: 4, text: "Important preferences: Use clear steps for complex answers" }
   ]);
-  const [editingMemoryId, setEditingMemoryId] = useState(null);
-  const [editingMemoryText, setEditingMemoryText] = useState("");
+  const uidRef = useRef(null), endRef = useRef(null), fileRef = useRef(null), inRef = useRef(null), recRef = useRef(null), kindRef = useRef("doc"), popRef = useRef(null);
 
-  const [activeInputMode, setActiveInputMode] = useState("text");
-  const [inputValue, setInputValue] = useState("");
-  const [attachedFile, setAttachedFile] = useState(null);
-  const [activeChatId, setActiveChatId] = useState(null);
-  const [currentChatMessages, setCurrentChatMessages] = useState([]);
-  const [historyChats, setHistoryChats] = useState([]);
-  const [chatCount, setChatCount] = useState(0);
-  const [isThinking, setIsThinking] = useState(false);
-  const [authError, setAuthError] = useState("");
-  const [newChatAnim, setNewChatAnim] = useState(false);
+  const modelLabel = (MODELS.find(m => m[0] === model) || [0, model])[1];
+  const hr = new Date().getHours();
+  const greet = hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
 
-  const [bgMode, setBgMode] = useState(() => {
-    try {
-      const mode = localStorage.getItem("nixlai_bgMode") || "none";
-      const img = localStorage.getItem("nixlai_customBgUrl");
-      return mode === "custom" && !img ? "none" : mode;
-    } catch (e) { return "none"; }
-  });
-  const [customBgUrl, setCustomBgUrl] = useState(() => {
-    try { return localStorage.getItem("nixlai_customBgUrl"); }
-    catch (e) { return null; }
-  });
-  const [customBgTone, setCustomBgTone] = useState("dark");
-  const bgFileInputRef = useRef(null);
-
-  const recognitionRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const messagesEndRef = useRef(null);
-  const matrixCanvasRef = useRef(null);
-  const rainCanvasRef = useRef(null);
-  const currentUidRef = useRef(null);
-  const inputElRef = useRef(null);
-
-  const isDark = currentTheme === "dark";
-
-  useMatrixRain(themeMode === "hacker", matrixCanvasRef);
-  useRainfall(bgMode === "rain", rainCanvasRef);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, thinking]);
 
   useEffect(() => {
-    try { localStorage.setItem("nixlai_bgMode", bgMode); } catch (e) {}
-  }, [bgMode]);
-
-  useEffect(() => {
-    try {
-      if (customBgUrl) localStorage.setItem("nixlai_customBgUrl", customBgUrl);
-      else localStorage.removeItem("nixlai_customBgUrl");
-    } catch (e) {
-      console.warn("Background image too large to save", e);
-    }
-  }, [customBgUrl]);
-
-  useEffect(() => {
-    if (customBgUrl) detectImageTone(customBgUrl).then(setCustomBgTone);
-  }, [customBgUrl]);
-
-  const T = themeMode === "hacker" ? {
-    bg: "#000000",
-    text: "#00ff00",
-    subText: "#008800",
-    barBg: "rgba(0,5,0,0.55)",
-    sidebarBg: "rgba(0,10,0,0.85)",
-    cardBg: "transparent",
-    border: "#003300",
-    shadow: "0 0 15px rgba(0,255,0,0.15)",
-    sentMsgBg: "transparent",
-  } : {
-    bg: isDark ? "#09090b" : "#f8fafc",
-    text: isDark ? "#f4f4f5" : "#0f172a",
-    subText: isDark ? "#a1a1aa" : "#64748b",
-    barBg: isDark ? "#18181b" : "#ffffff",
-    sidebarBg: isDark ? "rgba(24,24,27,0.97)" : "rgba(255,255,255,0.98)",
-    cardBg: isDark ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.05)",
-    border: isDark ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.1)",
-    shadow: isDark ? "0 25px 50px -12px rgba(0,0,0,0.7)" : "0 25px 50px -12px rgba(15,23,42,0.15)",
-    sentMsgBg: isDark ? "rgba(79,70,229,0.18)" : "#e2e8f0",
-  };
-
-  const bgTone = bgMode === "rain" ? "dark" : (bgMode === "custom" && customBgUrl) ? customBgTone : null;
-  const homeText = themeMode === "hacker" ? T.text : bgTone === "dark" ? "#ffffff" : bgTone === "light" ? "#0f172a" : T.text;
-  const homeSub = themeMode === "hacker" ? T.subText : bgTone === "dark" ? "rgba(255,255,255,0.75)" : bgTone === "light" ? "rgba(15,23,42,0.7)" : T.subText;
-  const homeShadow = themeMode === "hacker" ? "none" : bgTone === "dark" ? "0 1px 4px rgba(0,0,0,0.5)" : bgTone === "light" ? "0 1px 4px rgba(255,255,255,0.5)" : "none";
-  const barText = themeMode === "hacker" ? T.text : "#f4f4f5";
-  const barSub = themeMode === "hacker" ? T.subText : "rgba(255,255,255,0.65)";
-  const glassBlur = themeMode === "hacker" ? "blur(2px)" : "blur(8px) saturate(120%)";
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentChatMessages, isThinking]);
-
-  useEffect(() => {
-    if (window.__nixlai_signIn) { setFirebaseReady(true); return; }
-    const handler = () => setFirebaseReady(true);
-    window.addEventListener("firebase-ready", handler);
-    return () => window.removeEventListener("firebase-ready", handler);
+    if (window.__nixlai_signIn) { setReady(true); return; }
+    const f = () => setReady(true);
+    window.addEventListener("firebase-ready", f);
+    return () => window.removeEventListener("firebase-ready", f);
   }, []);
 
-  // ── Cloud sync: auto-save chat history to Firestore (debounced) ──
   useEffect(() => {
-    const uid = currentUidRef.current;
-    if (!isUserLoggedIn || !uid || historyChats.length === 0) return;
-    const t = setTimeout(() => {
-      window.__nixlai_saveChats(uid, historyChats).catch(console.error);
-    }, 1500);
+    const uid = uidRef.current;
+    if (!loggedIn || !uid || chats.length === 0) return;
+    const t = setTimeout(() => window.__nixlai_saveChats(uid, chats).catch(console.error), 1500);
     return () => clearTimeout(t);
-  }, [historyChats, isUserLoggedIn]);
+  }, [chats, loggedIn]);
 
   useEffect(() => {
-    if (!firebaseReady || !window.__nixlai_onAuthStateChanged) return;
-    const unsub = window.__nixlai_onAuthStateChanged((user) => {
+    if (!ready || !window.__nixlai_onAuthStateChanged) return;
+    return window.__nixlai_onAuthStateChanged(user => {
+      setActiveId(null); setMsgs([]);
       if (user) {
-        setRealName(user.displayName || "Google User"); setNickname((user.displayName || "Google User").split(" ")[0]);
-        setUserEmail(user.email); setUserPhoto(user.photoURL); setIsUserLoggedIn(true);
-        currentUidRef.current = user.uid;
-        setHistoryChats([]);
-        window.__nixlai_loadChats(user.uid).then(chats => {
-          if (currentUidRef.current === user.uid) setHistoryChats(chats);
-        }).catch(console.error);
-        setActiveChatId(null); setCurrentChatMessages([]); setChatCount(0);
+        const n = user.displayName || "Google User";
+        setRealName(n); setNick(n.split(" ")[0]); setEmail(user.email); setPhoto(user.photoURL); setLoggedIn(true);
+        uidRef.current = user.uid; setChats([]);
+        window.__nixlai_loadChats(user.uid).then(c => { if (uidRef.current === user.uid) setChats(c); }).catch(console.error);
       } else {
-        currentUidRef.current = null; setRealName("Guest User"); setNickname("Chief");
-        setUserEmail(""); setUserPhoto(null); setIsUserLoggedIn(false); setAuthProvider(null);
-        setHistoryChats([]); setActiveChatId(null); setCurrentChatMessages([]); setChatCount(0);
+        uidRef.current = null; setRealName("Guest User"); setNick("Chief"); setEmail(""); setPhoto(null); setLoggedIn(false); setChats([]);
       }
     });
-    return () => unsub && unsub();
-  }, [firebaseReady]);
+  }, [ready]);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
     const r = new SR();
     r.continuous = false; r.interimResults = false; r.lang = "en-US";
-    r.onresult = e => setInputValue(p => p ? p + " " + e.results[0][0].transcript : e.results[0][0].transcript);
-    r.onend = () => setIsRecording(false); r.onerror = () => setIsRecording(false);
-    recognitionRef.current = r;
+    r.onresult = e => setInput(p => p ? p + " " + e.results[0][0].transcript : e.results[0][0].transcript);
+    r.onend = () => setRec(false); r.onerror = () => setRec(false);
+    recRef.current = r;
   }, []);
 
-  // ── AUTH: Google + GitHub sign-in ──────────────────────────────
-  const handleOAuthSignIn = async (fn, provider) => {
-    setAuthError("");
-    if (!fn) { setAuthError("Sign-in is still loading, try again in a second."); return; }
-    try {
-      await fn();
-      setAuthProvider(provider);
-      setIsSettingsOpen(false);
-    } catch (e) {
-      if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
-      if (e.code === "auth/account-exists-with-different-credential") {
-        setAuthError("An account with this email already exists using a different sign-in method. Try the other one.");
-      } else if (e.code === "auth/popup-blocked") {
-        setAuthError("Popup was blocked. Allow popups for this site and try again.");
-      } else if (e.code === "auth/unauthorized-domain") {
-        setAuthError("This domain isn't authorized in Firebase. Add it under Authentication → Settings → Authorized domains.");
-      } else {
-        setAuthError(e.message || "Sign-in failed.");
-      }
-    }
-  };
-  const handleGoogleSignIn = () => handleOAuthSignIn(window.__nixlai_signIn, "google");
-  const handleGithubSignIn = () => handleOAuthSignIn(window.__nixlai_signInGithub, "github");
-
-  const loadTelegramWidget = () => { alert("Telegram Login is not fully implemented yet."); };
-
-  const confirmSignOut = () => {
-    if (window.__nixlai_signOut) {
-      window.__nixlai_signOut().then(() => { setShowSignOutConfirm(false); setIsSettingsOpen(false); setAuthProvider(null); });
-    }
-  };
-
-  const handleStartNewChat = () => {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    setActiveChatId(null); setCurrentChatMessages([]); setInputValue(""); setAttachedFile(null);
-    setNewChatAnim(true); setTimeout(() => setNewChatAnim(false), 950);
-  };
-
-  const handleSelectHistoricChat = (chat) => {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    setActiveChatId(chat.id); setCurrentChatMessages(chat.messages); setIsHistoryOpen(false); setIsTemporaryChat(false);
-  };
-
-  const toggleRecording = () => {
-    if (!recognitionRef.current) return alert("Speech unavailable on this browser.");
-    if (isRecording) { recognitionRef.current.stop(); setIsRecording(false); }
-    else { recognitionRef.current.start(); setIsRecording(true); }
-  };
-
-  const triggerFileExplorer = (mode) => { setActiveInputMode(mode); fileInputRef.current?.click(); setIsAttachMenuOpen(false); };
-  const handleBgFileChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { alert("Please choose an image file."); return; }
-    const reader = new FileReader();
-    reader.onerror = () => alert("Couldn't read that image.");
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => alert("Couldn't load that image.");
-      img.onload = () => {
-        // Shrink the image so it fits in localStorage, trying smaller sizes if needed
-        const attempts = [[1600, 0.8], [1280, 0.75], [960, 0.7], [720, 0.65]];
-        let saved = null;
-        let lastUrl = null;
-        for (const [max, quality] of attempts) {
-          const scale = Math.min(1, max / Math.max(img.width, img.height));
-          const c = document.createElement("canvas");
-          c.width = Math.max(1, Math.round(img.width * scale));
-          c.height = Math.max(1, Math.round(img.height * scale));
-          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-          const dataUrl = c.toDataURL("image/jpeg", quality);
-          lastUrl = dataUrl;
-          try {
-            localStorage.setItem("nixlai_customBgUrl", dataUrl);
-            saved = dataUrl;
-            break;
-          } catch (err) { /* too big, try smaller */ }
-        }
-        if (saved) {
-          setCustomBgUrl(saved);
-          setBgMode("custom");
-        } else {
-          setCustomBgUrl(lastUrl);
-          setBgMode("custom");
-          alert("Your browser couldn't store this wallpaper, so it will reset when you close the page. Try a smaller image.");
-        }
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleQuickAction = (action) => {
-    let prompt = "";
-    if (action === 'think') prompt = "Help me brainstorm ideas about ";
-    if (action === 'study') prompt = "Explain the concept of ";
-    if (action === 'code') prompt = "Write a script to ";
-    if (action === 'write') prompt = "Draft an essay or email about ";
-    if (action === 'research') prompt = "Find detailed information on ";
-    setInputValue(prompt);
-    if (inputElRef.current) {
-      inputElRef.current.focus();
-    }
-  };
-
-  const sendToApi = async (userMsgText, history) => {
-    setIsThinking(true);
-
-    // ── 🍌 NANO BANANA: Image mode ──
-    if (activeMode.includes("Image")) {
-      try {
-        const res = await fetch("/api/image", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: userMsgText })
-        });
-        const data = await res.json();
-        if (!data.image) throw new Error(data.error?.message || "No image returned");
-
-        const updated = [...history, { id: Date.now() + 1, text: data.text || "", image: data.image, sender: "ai" }];
-        setCurrentChatMessages(updated);
-        if (!isTemporaryChat) {
-          if (activeChatId === null) {
-            const newId = Date.now();
-            setHistoryChats(p => [{ id: newId, title: userMsgText.substring(0, 28) + "…", date: "Just now", messages: updated }, ...p]);
-            setActiveChatId(newId);
-          } else {
-            setHistoryChats(p => p.map(c => c.id === activeChatId ? { ...c, messages: updated } : c));
-          }
-        }
-      } catch (err) {
-        setCurrentChatMessages(p => [...p, { id: Date.now() + 1, text: `⚠️ Image generation failed: ${err.message}`, sender: "ai" }]);
-      } finally {
-        setIsThinking(false);
-      }
-      return;
-    }
-    
-    let dynamicSystemPrompt = systemPrompt;
-    let delay = 0;
-    
-    if (activeMode === "🧠 Deep") {
-      dynamicSystemPrompt += "\n\n[SYSTEM DIRECTIVE: Deep Mode Active. Take your time, think through the complicated problem thoroughly step-by-step, and provide a highly detailed, comprehensive analysis.]";
-      delay = 1500;
-    } else if (activeMode === "📚 Study") {
-      dynamicSystemPrompt += "\n\n[SYSTEM DIRECTIVE: Study Mode Active. Act as a patient tutor. Explain things step-by-step in the right form. Break down complex topics so they are easy to learn.]";
-    } else if (activeMode === "💻 Dev") {
-      dynamicSystemPrompt += "\n\n[SYSTEM DIRECTIVE: Dev Mode Active. You are an expert software developer. Focus entirely on providing clean, working, efficient code according to the prompt.]";
-    }
-
-    try {
-      if (delay > 0) await new Promise(r => setTimeout(r, delay));
-
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: [{ role: "system", content: dynamicSystemPrompt }, { role: "user", content: userMsgText }],
-          temperature: 0.7, max_tokens: 1000
-        })
-      });
-      const data = await res.json();
-      if (data.choices?.[0]?.message?.content) {
-        const aiReply = data.choices[0].message.content;
-        const updated = [...history, { id: Date.now() + 1, text: aiReply, sender: "ai" }];
-        setCurrentChatMessages(updated);
-        if (!isTemporaryChat) {
-          if (activeChatId === null) {
-            const newId = Date.now();
-            setHistoryChats(p => [{ id: newId, title: userMsgText.substring(0, 28) + "…", date: "Just now", messages: updated }, ...p]);
-            setActiveChatId(newId);
-          } else {
-            setHistoryChats(p => p.map(c => c.id === activeChatId ? { ...c, messages: updated } : c));
-          }
-        }
-      } else {
-        throw new Error(data.error?.message || "Invalid response format");
-      }
-    } catch (err) {
-      setCurrentChatMessages(p => [...p, { id: Date.now() + 1, text: `⚠️ Sorry i am unavailable right now pls try again later: ${err.message}`, sender: "ai" }]);
-    } finally {
-      setIsThinking(false);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    const txt = inputValue.trim();
-    if (!txt && !attachedFile) return;
-    let userMsgText = attachedFile ? `[File: ${attachedFile.name}] ${txt}` : txt;
-    const newMsg = { id: Date.now(), text: userMsgText, sender: "user" };
-    const history = [...currentChatMessages, newMsg];
-    setCurrentChatMessages(history);
-    setInputValue(""); setAttachedFile(null);
-    await sendToApi(userMsgText, history);
-    if (!isTemporaryChat) setChatCount(p => p + 1);
-  };
-
-  const handleRetry = async (aiMsg) => {
-    const idx = currentChatMessages.findIndex(m => m.id === aiMsg.id);
-    if (idx < 1) return;
-    const prevUser = currentChatMessages.slice(0, idx).reverse().find(m => m.sender === "user");
-    if (!prevUser) return;
-    const trimmed = currentChatMessages.slice(0, idx);
-    setCurrentChatMessages(trimmed);
-    await sendToApi(prevUser.text, trimmed);
-  };
-
-  const handleEditUserMsg = async (msg, newText) => {
-    const idx = currentChatMessages.findIndex(m => m.id === msg.id);
-    if (idx === -1) return;
-    const updatedMsg = { ...msg, text: newText };
-    const trimmed = [...currentChatMessages.slice(0, idx), updatedMsg];
-    setCurrentChatMessages(trimmed);
-    await sendToApi(newText, trimmed);
-  };
-
-  const inputAreaRef = useRef(null);
   useEffect(() => {
-    const close = (e) => {
-      if (isAttachMenuOpen && inputAreaRef.current && !inputAreaRef.current.contains(e.target)) setIsAttachMenuOpen(false);
-      if (showModeMenu && inputAreaRef.current && !inputAreaRef.current.contains(e.target)) setShowModeMenu(false);
-    };
+    const close = e => { if (modeMenu && popRef.current && !popRef.current.contains(e.target)) setModeMenu(false); };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [isAttachMenuOpen, showModeMenu]);
+  }, [modeMenu]);
 
-  const maskEmail = (email) => {
-    if (!email || !email.includes("@")) return "Email hidden";
-    const at = email.lastIndexOf("@");
-    const local = email.slice(0, at);
-    const domain = email.slice(at);
-    if (local.length <= 2) return local[0] + "#" + domain;
-    if (local.length <= 4) return local[0] + "#".repeat(local.length - 1) + domain;
-    return local.slice(0, 2) + "#".repeat(local.length - 4) + local.slice(-2) + domain;
+  const oauth = async (name) => {
+    setAuthErr("");
+    if (!window[name]) await new Promise(r => { const t = setTimeout(r, 6000); window.addEventListener("firebase-ready", () => { clearTimeout(t); r(); }, { once: true }); });
+    if (!window[name]) return setAuthErr("Sign-in couldn't load (Firebase didn't start). Check your internet or any ad blocker blocking gstatic.com, make sure you open the site over https:// or localhost, then reload.");
+    try { await window[name](); setShowAcct(false); }
+    catch (e) {
+      if (["auth/popup-closed-by-user", "auth/cancelled-popup-request"].includes(e.code)) return;
+      setAuthErr(e.code === "auth/account-exists-with-different-credential" ? "An account with this email already exists with a different sign-in method."
+        : e.code === "auth/popup-blocked" ? "Popup blocked. Allow popups for this site and try again."
+        : e.code === "auth/unauthorized-domain" ? "This domain isn't authorized in Firebase (Authentication → Settings → Authorized domains)."
+        : e.message || "Sign-in failed.");
+    }
+  };
+  const maskEmail = (s) => {
+    if (!s || !s.includes("@")) return "Email hidden";
+    const at = s.lastIndexOf("@"), l = s.slice(0, at), d = s.slice(at);
+    return l.length <= 2 ? l[0] + "#" + d : l.length <= 4 ? l[0] + "#".repeat(l.length - 1) + d : l.slice(0, 2) + "#".repeat(l.length - 4) + l.slice(-2) + d;
   };
 
-  const oauthBtnStyle = (color, bg) => ({
-    border: `1px solid ${themeMode === "hacker" ? "#0f0" : color}`,
-    backgroundColor: themeMode === "hacker" ? "transparent" : bg,
-    color: themeMode === "hacker" ? "#0f0" : color,
-    borderRadius: themeMode === "hacker" ? "0" : "8px"
-  });
+  const newChat = () => {
+    setActiveId(null); setMsgs([]); setInput(""); setFile(null); setNavOpen(false);
+  };
+  const openChat = (c) => { setActiveId(c.id); setMsgs(c.messages); setTemp(false); setShowHist(false); setNavOpen(false); };
+  const toggleRec = () => {
+    if (!recRef.current) return alert("Speech unavailable on this browser.");
+    if (rec) { recRef.current.stop(); setRec(false); } else { recRef.current.start(); setRec(true); }
+  };
+  const pick = (kind) => { kindRef.current = kind; fileRef.current?.click(); };
+  const prefill = (t) => { setInput(t); inRef.current?.focus(); };
 
-  const headerBtnStyle = { background: "none", border: "none", cursor: "pointer", color: homeText, textShadow: homeShadow, fontSize: "13px", fontWeight: "500", display: "flex", alignItems: "center", gap: "5px", fontFamily: "inherit", transition: "color 0.3s" };
+  const api = async (text, hist) => {
+    setThinking(true);
+    const img = mode.includes("Image");
+    try {
+      let reply;
+      if (img) {
+        const r = await fetch("/api/image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: text }) });
+        const d = await r.json();
+        if (!d.image) throw new Error(d.error?.message || "No image returned");
+        reply = { text: d.text || "", image: d.image };
+      } else {
+        if (mode === "🧠 Deep") await new Promise(r => setTimeout(r, 1500));
+        const r = await fetch("/api/chat", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model, messages: [{ role: "system", content: sysPrompt + (DIRECTIVES[mode] || "") }, { role: "user", content: text }], temperature: 0.7, max_tokens: 1000 })
+        });
+        const d = await r.json();
+        const c = d.choices?.[0]?.message?.content;
+        if (!c) throw new Error(d.error?.message || "Invalid response format");
+        reply = { text: c };
+      }
+      const upd = [...hist, { id: Date.now() + 1, sender: "ai", ...reply }];
+      setMsgs(upd);
+      if (!temp) {
+        if (activeId === null) {
+          const id = Date.now();
+          setChats(p => [{ id, title: text.substring(0, 28) + "…", date: "Just now", messages: upd }, ...p]);
+          setActiveId(id);
+        } else setChats(p => p.map(c => c.id === activeId ? { ...c, messages: upd } : c));
+      }
+    } catch (e) {
+      setMsgs(p => [...p, { id: Date.now() + 1, sender: "ai", text: img ? `⚠️ Image generation failed: ${e.message}` : `⚠️ Sorry I am unavailable right now, please try again later: ${e.message}` }]);
+    } finally { setThinking(false); }
+  };
 
-  return React.createElement("div", {
-    className: themeMode === "hacker" ? "hacker-text" : "",
-    style: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: T.bg, color: T.text }
-  },
-    React.createElement("canvas", { id: "matrix-rain-canvas", ref: matrixCanvasRef }),
-    React.createElement("canvas", { id: "rain-canvas", ref: rainCanvasRef }),
-    bgMode === "custom" && customBgUrl && React.createElement("div", { id: "bg-media-layer", style: { backgroundImage: `url(${customBgUrl})` } }),
-    React.createElement("input", { type: "file", ref: bgFileInputRef, onChange: handleBgFileChange, style: { display: "none" }, accept: "image/*" }),
-    React.createElement("input", { type: "file", ref: fileInputRef, onChange: e => { const f = e.target.files[0]; if (f) setAttachedFile({ name: f.name, type: activeInputMode }); e.target.value = ""; }, style: { display: "none" }, accept: activeInputMode === "image" ? "image/*" : "*/*" }),
+  const send = async () => {
+    const txt = input.trim();
+    if (!txt && !file) return;
+    const t = file ? `[File: ${file.name}] ${txt}` : txt;
+    const hist = [...msgs, { id: Date.now(), text: t, sender: "user" }];
+    setMsgs(hist); setInput(""); setFile(null);
+    await api(t, hist);
+  };
+  const retry = async (m) => {
+    const i = msgs.findIndex(x => x.id === m.id);
+    const pu = msgs.slice(0, i).reverse().find(x => x.sender === "user");
+    if (i < 1 || !pu) return;
+    const tr = msgs.slice(0, i);
+    setMsgs(tr); await api(pu.text, tr);
+  };
+  const edit = async (m, t) => {
+    const i = msgs.findIndex(x => x.id === m.id);
+    if (i === -1) return;
+    const tr = [...msgs.slice(0, i), { ...m, text: t }];
+    setMsgs(tr); await api(t, tr);
+  };
 
-    // ── HEADER ──
-    React.createElement("div", {
-      className: "header-bar",
-      style: { padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${T.border}`, flexShrink: 0, position: "relative", zIndex: 1, backgroundColor: themeMode === "hacker" ? "rgba(0,5,0,0.55)" : "transparent", backdropFilter: themeMode === "hacker" ? "blur(2px)" : "none" }
-    },
-      React.createElement("button", { onClick: () => setIsSettingsOpen(true), style: { ...headerBtnStyle, gap: "6px" } },
-        React.createElement("svg", { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2 },
-          React.createElement("circle", { cx: "12", cy: "12", r: "3" }),
-          React.createElement("path", { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" })
-        ), React.createElement("span", { className: "header-btn-text" }, "Settings")
+  const empty = msgs.length === 0 && !thinking;
+  const modeCards = [
+    ...MODES.slice(0, 4).map(m => ({ k: m.id, label: m.label, desc: m.desc, icon: m.icon, on: mode === m.id, go: () => setMode(m.id) })),
+    { k: "w", label: "Write", desc: "Create & express", icon: "pen", go: () => prefill("Draft an essay or email about ") },
+    { k: "r", label: "Research", desc: "Find & explore", icon: "search", go: () => prefill("Find detailed information on ") }
+  ];
+  const tries = [["bulb", "Explain this", "Explain the concept of "], ["clock", "Make a plan", "Make a plan for "], ["pen", "Write a note", "Write a note about "], ["search", "Find resources", "Find resources on "]];
+
+  const navItem = (icon, label, fn, on) => h("button", { className: on ? "on" : "", onClick: () => { fn(); setNavOpen(false); } }, Ic(icon, 20), label);
+
+  return h(React.Fragment, null,
+    h("canvas", { id: "fx", ref: fxRef }),
+    bgMode === "custom" && customBg && !hacker && h("div", { id: "bgl", style: { backgroundImage: `url(${customBg})` } }),
+    h("div", { className: "app" + (fx ? " fx" : "") },
+    h("input", { type: "file", ref: bgRef, style: { display: "none" }, accept: "image/*", onChange: onBgFile }),
+    h("input", { type: "file", ref: fileRef, style: { display: "none" }, accept: kindRef.current === "image" ? "image/*" : "*/*", onChange: e => { const f = e.target.files[0]; if (f) setFile({ name: f.name }); e.target.value = ""; } }),
+
+    // TOP BAR
+    h("div", { className: "top" },
+      h("button", { className: "ib menu-btn", onClick: () => setNavOpen(true) }, Ic("menu", 22)),
+      h("div", { className: "logo" },
+        h("img", { src: "/icons/logo.png", alt: "", onError: e => { e.target.style.display = "none"; } }),
+        h("span", { className: "brand" }, "NixlAI")),
+      h("span", { className: "tag" }, "Your AI. Your Rules."),
+      temp && h("span", { className: "off on" }, "◉ Temp"),
+      h("div", { className: "sp" }),
+      h("div", { className: "pill" }, h("span", { className: "dot" }), "Online"),
+      h("button", { className: "ib", title: "Control Center", onClick: () => setShowSet(true) }, Ic("sliders", 20)),
+      h("button", { onClick: () => setShowAcct(true), title: "Account", style: { display: "flex" } },
+        photo ? h("img", { className: "av", src: photo, referrerPolicy: "no-referrer", alt: "" })
+          : h("div", { className: "av" }, (email || realName || "?")[0].toUpperCase()))
+    ),
+
+    h("div", { className: "main" },
+      navOpen && h("div", { className: "scrim", onClick: () => setNavOpen(false) }),
+
+      // SIDEBAR
+      h("div", { className: "side" + (navOpen ? " open" : "") },
+        h("div", { className: "nav" },
+          navItem("home", "Home", newChat, true),
+          navItem("lock", "Memory Vault", () => setShowMem(true)),
+          navItem("sliders", "Control Center", () => setShowSet(true)),
+          navItem("clock", "History", () => setShowHist(true)),
+          navItem("sun", "Appearance", () => setShowApp(true)),
+          navItem("download", "Export Chat", () => setShowExp(true))
+        ),
+        h("div", { className: "promo" }, "✦ Better questions.", h("br"), "Bigger possibilities.")
       ),
 
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" } },
-        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px" } },
-          React.createElement("span", { style: { fontSize: "18px", fontWeight: "700", letterSpacing: "0.5px", color: homeText, textShadow: homeShadow, transition: "color 0.3s" } }, "NixlAI"),
-          isTemporaryChat && React.createElement("span", { style: { fontSize: "10px", backgroundColor: themeMode === "hacker" ? "#0f0" : "#ef4444", color: themeMode === "hacker" ? "#000" : "white", padding: "2px 7px", borderRadius: "8px", fontWeight: "600" } }, "◉ Temp")
+      // CENTER
+      h("div", { className: "center" },
+        h("svg", { className: "mtn", viewBox: "0 0 800 300", preserveAspectRatio: "none" },
+          h("polygon", { points: "0,300 0,210 90,170 160,200 260,120 340,190 430,140 520,210 620,150 720,200 800,170 800,300", fill: "rgba(30,24,100,.55)" }),
+          h("polygon", { points: "0,300 0,250 120,220 220,250 330,200 450,245 560,215 680,250 800,225 800,300", fill: "rgba(14,12,60,.8)" })),
+        h("div", { className: "scroll" },
+          empty
+            ? h("div", { className: "hero" },
+                h("div", null,
+                  h("h1", null, temp ? "◉ Temporary chat" : `${greet}, ${nick} ✦`),
+                  h("p", null, temp ? "Nothing here will be saved." : "What would you like to do today?")),
+                !temp && h("div", { className: "modes" }, modeCards.map(c =>
+                  h("button", { key: c.k, className: "mc" + (c.on ? " on" : ""), onClick: c.go },
+                    h("span", { style: { color: c.on ? "#c4b5fd" : "#8e95ff" } }, Ic(c.icon, 26)), h("b", null, c.label), h("small", null, c.desc)))))
+            : h("div", { className: "msgs" },
+                msgs.map(m => h(Msg, { key: m.id, m, onRetry: retry, onEdit: edit })),
+                thinking && h("div", { className: "msg a" }, h("div", { className: "bub" }, h("span", { className: "td" }), h("span", { className: "td" }), h("span", { className: "td" }))),
+                h("div", { ref: endRef }))
         ),
-        React.createElement("span", { className: "hide-mobile", style: { fontSize: "11px", color: homeSub, textShadow: homeShadow, transition: "color 0.3s" } }, "I'm just an AI — I can make mistakes")
+
+        // INPUT
+        h("div", { className: "inwrap" },
+          h("div", { className: "ibox" + (temp ? " temp" : "") },
+            file && h("div", { className: "file" }, h("span", null, "⌘ ", h("b", null, file.name)), h("button", { onClick: () => setFile(null) }, "×")),
+            h("input", { className: "t", ref: inRef, value: input, placeholder: `Message NixlAI (${mode.split(" ")[1]})...`, onChange: e => setInput(e.target.value), onKeyDown: e => e.key === "Enter" && !e.shiftKey && send() }),
+            h("div", { className: "irow" },
+              h("button", { className: "ib", title: "Attach document", onClick: () => pick("doc") }, Ic("plus", 20)),
+              h("button", { className: "ib", title: "Attach image", onClick: () => pick("image") }, Ic("clip", 18)),
+              h("div", { className: "sp" }),
+              h("button", { className: "ib", title: "Voice input", style: { color: rec ? "#ef4444" : undefined }, onClick: toggleRec }, Ic("mic", 18)),
+              h("div", { style: { position: "relative" }, ref: popRef },
+                h("button", { className: "ib", title: "Change mode", onClick: () => setModeMenu(v => !v), style: { color: "#c4b5fd" } }, Ic("brain", 20)),
+                modeMenu && h("div", { className: "pop" }, MODES.map(m =>
+                  h("button", { key: m.id, className: mode === m.id ? "on" : "", onClick: () => { setMode(m.id); setModeMenu(false); } }, `${m.id}`, h("small", null, m.desc))))),
+              h("button", { className: "off" + (temp ? " on" : ""), title: "Temporary chat", onClick: () => { setTemp(v => !v); newChat(); } }, "◉ ", temp ? "On" : "Off"),
+              h("button", { className: "send", onClick: send, title: "Send" }, Ic("send", 19)))
+          ),
+          empty && !temp && h("div", { className: "try" }, "Try",
+            tries.map(([ic, l, p]) => h("button", { key: l, className: "chip", onClick: () => prefill(p) }, Ic(ic, 13), l)))
+        ),
+        h("div", { className: "foot" }, `NixlAI v1.0 • Powered by ${modelLabel}`)
       ),
 
-      React.createElement("div", { style: { display: "flex", gap: "10px" } },
-        React.createElement("button", { onClick: handleStartNewChat, style: headerBtnStyle },
-          React.createElement("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }, React.createElement("line", { x1: "12", y1: "5", x2: "12", y2: "19" }), React.createElement("line", { x1: "5", y1: "12", x2: "19", y2: "12" })), 
-          React.createElement("span", { className: "header-btn-text" }, "New Chat")
-        ),
-        React.createElement("button", { onClick: () => setIsHistoryOpen(true), style: headerBtnStyle },
-          React.createElement("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2 }, React.createElement("path", { d: "M3 3h18v18H3z" }), React.createElement("path", { d: "M3 9h18" }), React.createElement("path", { d: "M9 21V9" })), 
-          React.createElement("span", { className: "header-btn-text" }, "History")
-        )
+      // RIGHT PANEL
+      h("div", { className: "right" },
+        h("div", { className: "card" },
+          h("div", { className: "h3" }, "AI Status"),
+          h("div", { style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#7be8b5", marginBottom: 6 } }, h("span", { className: "dot" }), "All systems operational"),
+          [["brain", "Model", modelLabel], ["lock", "Memory", mems.length + " saved"], ["chat", "Chats", loggedIn ? "Synced" : "Local"], ["tool", "Tools", "Ready"]].map(([ic, k, v]) =>
+            h("div", { className: "row", key: k }, h("div", { className: "ico" }, Ic(ic, 17)), h("span", { className: "k" }, k), h("span", { className: "v" }, v)))),
+        h("div", { className: "card" },
+          h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+            h("div", { className: "h3", style: { marginBottom: 0 } }, "Recent Chats"),
+            h("button", { style: { color: "#7aa2ff", fontSize: 13 }, onClick: () => setShowHist(true) }, "View all")),
+          chats.length === 0
+            ? h("div", { style: { color: "var(--sub)", fontSize: 13, padding: "14px 0" } }, loggedIn ? "No chats saved yet." : "Sign in to save your chats.")
+            : chats.slice(0, 5).map(c => h("button", { key: c.id, className: "rc", onClick: () => openChat(c) },
+                h("div", { className: "ico" }, Ic("chat", 17)), h("div", null, h("div", { className: "t" }, c.title), h("small", null, c.date))))),
+        h("div", { className: "quote" }, "✦ “Small steps", h("br"), "build big things.”", h("div", { style: { color: "#a5b4fc", fontSize: 12, marginTop: 6 } }, "— NixlAI"))
       )
     ),
 
-    // ── CHAT AREA ──
-    React.createElement("div", {
-      className: "chat-area",
-      style: { flex: "1 1 0%", minHeight: 0, padding: "24px 24px 8px", overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", justifyContent: currentChatMessages.length === 0 && !isThinking ? "center" : "flex-start", position: "relative", zIndex: 1 }
-    },
-      newChatAnim && (
-        themeMode === "hacker"
-          ? React.createElement("div", { className: "newchat-overlay-hacker" },
-              React.createElement("div", { className: "newchat-scanline-hacker" }),
-              React.createElement("div", { className: "newchat-label-hacker" }, "> INITIALIZING NEW SESSION...")
-            )
-          : React.createElement("div", { className: "newchat-overlay-normal" },
-              React.createElement("div", { className: "newchat-ring-normal" }),
-              React.createElement("div", { className: "newchat-label-normal" }, "Starting a new chat…")
-            )
-      ),
-      currentChatMessages.length === 0 && !isThinking
-        ? React.createElement("div", { style: { textAlign: "center", color: homeText, textShadow: homeShadow, transition: "color 0.3s", width: "100%", marginTop: "-8vh", display: "flex", flexDirection: "column", gap: "30px", alignItems: "center" } },
-            React.createElement("div", { style: { fontSize: "16px", fontWeight: "500" } },
-              isTemporaryChat ? (themeMode === "hacker" ? "> TEMPORARY SESSION ACTIVE [NO_LOGS]" : "◉ Temporary chat — nothing here will be saved.") : (themeMode === "hacker" ? `> TERMINAL READY. AWAITING INPUT, ${nickname.toUpperCase()}...` : `Hey ${nickname} ★ Ask anything…`)
-            ),
-            
-            // QUICK ACTION CARDS
-            !isTemporaryChat && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px", alignItems: "center", animation: "fadeIn 0.5s ease" } },
-              React.createElement("div", { style: { fontSize: "12px", color: homeSub, textTransform: "uppercase", letterSpacing: "1px", fontWeight: "bold" } }, "What do you want to do?"),
-              React.createElement("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center", maxWidth: "600px" } },
-                React.createElement("button", { className: "quick-action-btn", style: { backgroundColor: themeMode === "hacker" ? "rgba(0,255,0,0.1)" : "rgba(15,23,42,0.4)", color: themeMode === "hacker" ? "#0f0" : "#fff", border: themeMode === "hacker" ? "1px solid #0f0" : `1px solid rgba(255,255,255,0.15)` }, onClick: () => handleQuickAction("think") }, "🧠 Think"),
-                React.createElement("button", { className: "quick-action-btn", style: { backgroundColor: themeMode === "hacker" ? "rgba(0,255,0,0.1)" : "rgba(15,23,42,0.4)", color: themeMode === "hacker" ? "#0f0" : "#fff", border: themeMode === "hacker" ? "1px solid #0f0" : `1px solid rgba(255,255,255,0.15)` }, onClick: () => handleQuickAction("study") }, "📚 Study"),
-                React.createElement("button", { className: "quick-action-btn", style: { backgroundColor: themeMode === "hacker" ? "rgba(0,255,0,0.1)" : "rgba(15,23,42,0.4)", color: themeMode === "hacker" ? "#0f0" : "#fff", border: themeMode === "hacker" ? "1px solid #0f0" : `1px solid rgba(255,255,255,0.15)` }, onClick: () => handleQuickAction("code") }, "💻 Code"),
-                React.createElement("button", { className: "quick-action-btn", style: { backgroundColor: themeMode === "hacker" ? "rgba(0,255,0,0.1)" : "rgba(15,23,42,0.4)", color: themeMode === "hacker" ? "#0f0" : "#fff", border: themeMode === "hacker" ? "1px solid #0f0" : `1px solid rgba(255,255,255,0.15)` }, onClick: () => handleQuickAction("write") }, "✍️ Write"),
-                React.createElement("button", { className: "quick-action-btn", style: { backgroundColor: themeMode === "hacker" ? "rgba(0,255,0,0.1)" : "rgba(15,23,42,0.4)", color: themeMode === "hacker" ? "#0f0" : "#fff", border: themeMode === "hacker" ? "1px solid #0f0" : `1px solid rgba(255,255,255,0.15)` }, onClick: () => handleQuickAction("research") }, "🔎 Research")
-              )
-            )
-          )
-        : React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px", width: "100%", maxWidth: "800px", margin: "0 auto" } },
-            ...currentChatMessages.map(msg =>
-              msg.sender === "user"
-                ? React.createElement(UserMessageBubble, { key: msg.id, msg, sentMsgBg: T.sentMsgBg, textColor: T.text, isTemporaryChat, onEdit: handleEditUserMsg, themeMode })
-                : React.createElement(AiMessageBubble, { key: msg.id, msg, cardBg: T.cardBg, text: T.text, border: T.border, isTemporaryChat, onRetry: handleRetry, themeMode })
-            ),
-            isThinking && React.createElement(ThinkingDots, { cardBg: T.cardBg, border: T.border, themeMode }),
-            React.createElement("div", { ref: messagesEndRef })
-          )
-    ),
+    // HISTORY
+    showHist && h(Modal, { title: "Saved Chats", onClose: () => setShowHist(false) },
+      chats.length === 0
+        ? h("div", { style: { color: "var(--sub)", fontSize: 13, textAlign: "center", padding: 16 } }, loggedIn ? "No chats saved yet." : "Sign in to sync and save your chat history.")
+        : chats.map(c => h("button", { key: c.id, className: "rc", style: { borderBottom: "1px solid var(--line)" }, onClick: () => openChat(c) },
+            h("div", null, h("div", { className: "t", style: { maxWidth: 360 } }, c.title), h("small", null, c.date))))),
 
-    // ── INPUT AREA ──
-    React.createElement("div", {
-      className: "input-wrapper-container",
-      style: { padding: "10px 16px 20px", display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, position: "relative", zIndex: 10, width: "100%" }
-    },
-      React.createElement("div", { ref: inputAreaRef, style: { display: "flex", alignItems: "center", width: "100%", maxWidth: "800px", gap: "10px" } },
-        
-        // MODE TOGGLE BUTTON
-        React.createElement("div", { style: { position: "relative" } },
-          React.createElement("button", {
-            className: "send-btn",
-            title: "Change Mode",
-            onClick: () => setShowModeMenu(!showModeMenu),
-            style: {
-              borderRadius: themeMode === "hacker" ? "0" : "50%",
-              backgroundColor: themeMode === "hacker" ? "transparent" : "#3b82f6",
-              border: themeMode === "hacker" ? "1px solid #0f0" : "none",
-              boxShadow: themeMode === "hacker" ? "0 0 10px rgba(0,255,0,0.4)" : "0 4px 14px rgba(59,130,246,0.4)"
-            }
-          }, React.createElement(IconMode, { size: 17, color: themeMode === "hacker" ? "#0f0" : "white" })),
-          
-          showModeMenu && React.createElement("div", {
-            style: {
-              position: "absolute", bottom: "50px", left: "0",
-              backgroundColor: themeMode === "hacker" ? "#000" : T.barBg,
-              border: themeMode === "hacker" ? "1px solid #0f0" : `1px solid ${T.border}`,
-              borderRadius: themeMode === "hacker" ? "0" : "12px",
-              padding: "6px", display: "flex", flexDirection: "column", minWidth: "160px",
-              zIndex: 20, boxShadow: T.shadow, backdropFilter: glassBlur
-            }
-          },
-            [{icon: "⚡", label: "Nix", desc: "Fast everyday assistant"},
-             {icon: "🧠", label: "Deep", desc: "Thinks through problems"},
-             {icon: "📚", label: "Study", desc: "Explains step-by-step"},
-             {icon: "💻", label: "Dev", desc: "Coding-focused"},
-             {icon: "📷", label: "Image", desc: "image generation"}].map(m => 
-              React.createElement("button", {
-                key: m.label,
-                onClick: () => { setActiveMode(`${m.icon} ${m.label}`); setShowModeMenu(false); },
-                style: {
-                  background: activeMode.includes(m.label) ? (themeMode === "hacker" ? "rgba(0,255,0,0.15)" : "rgba(79,70,229,0.15)") : "none",
-                  border: "none", padding: "10px", textAlign: "left", cursor: "pointer",
-                  borderRadius: themeMode === "hacker" ? "0" : "8px", fontFamily: "inherit",
-                  display: "flex", flexDirection: "column", gap: "2px"
-                }
-              }, 
-                React.createElement("div", { style: { fontSize: "14px", fontWeight: "600", color: T.text } }, `${m.icon} ${m.label}`),
-                React.createElement("div", { style: { fontSize: "11px", color: T.subText } }, m.desc)
-              )
-            )
-          )
-        ),
+    // MEMORY VAULT
+    showMem && h(Modal, { title: "Memory Vault", onClose: () => setShowMem(false) },
+      mems.length === 0 && h("div", { style: { color: "var(--sub)", textAlign: "center", fontSize: 13 } }, "Vault is empty."),
+      mems.map(m => h("div", { key: m.id, className: "mem" }, h("span", null, `“${m.text}”`),
+        h("span", { style: { display: "flex", gap: 6, flexShrink: 0 } },
+          h("button", { onClick: () => { const t = prompt("Edit memory", m.text); if (t && t.trim()) setMems(p => p.map(x => x.id === m.id ? { ...x, text: t.trim() } : x)); } }, "✎"),
+          h("button", { style: { color: "#ef4444" }, onClick: () => setMems(p => p.filter(x => x.id !== m.id)) }, "×")))),
+      h("button", { className: "btn", onClick: () => { const t = prompt("New memory"); if (t && t.trim()) setMems(p => [...p, { id: Date.now(), text: t.trim() }]); } }, "+ Add memory")),
 
-        // MAIN INPUT BAR
-        React.createElement("div", {
-          style: {
-            flex: 1, display: "flex", flexDirection: "column",
-            borderRadius: themeMode === "hacker" ? "0" : "24px",
-            border: `1px solid ${isTemporaryChat ? (themeMode === "hacker" ? "#0f0" : "#ef4444") : (themeMode === "hacker" ? T.border : "rgba(255,255,255,0.15)")}`,
-            backgroundColor: themeMode === "hacker" ? T.barBg : "rgba(15,23,42,0.45)",
-            backdropFilter: glassBlur, WebkitBackdropFilter: glassBlur, color: barText,
-            padding: "6px 16px", boxShadow: T.shadow, position: "relative"
-          }
-        },
-          attachedFile && React.createElement("div", { style: { fontSize: "11px", padding: "4px 8px", borderRadius: themeMode === "hacker" ? "0" : "6px", backgroundColor: themeMode === "hacker" ? "rgba(0,255,0,0.15)" : "rgba(79,70,229,0.25)", marginBottom: "6px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" } },
-            React.createElement("span", null, "⌘ ", React.createElement("strong", null, attachedFile.name)),
-            React.createElement("button", { onClick: () => setAttachedFile(null), style: { background: "none", border: "none", cursor: "pointer", color: barSub, fontSize: "14px" } }, "×")
-          ),
-          React.createElement("div", { style: { display: "flex", alignItems: "center", width: "100%" } },
-            React.createElement("button", { onClick: e => { e.stopPropagation(); setIsAttachMenuOpen(p => !p); }, title: "Attach file", style: { background: "none", border: "none", cursor: "pointer", color: barSub, fontSize: "16px", padding: "0 6px 0 0", lineHeight: 1 } }, "＋"),
-            isAttachMenuOpen && React.createElement("div", { style: { position: "absolute", bottom: "60px", left: "10px", backgroundColor: T.barBg, border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "12px", padding: "6px", display: "flex", flexDirection: "column", minWidth: "130px", zIndex: 20, boxShadow: T.shadow } },
-              React.createElement("button", { onClick: () => triggerFileExplorer("doc"), style: { background: "none", border: "none", padding: "8px", textAlign: "left", cursor: "pointer", fontSize: "12px", color: T.text, fontFamily: "inherit" } }, "▤ Document"),
-              React.createElement("button", { onClick: () => triggerFileExplorer("image"), style: { background: "none", border: "none", padding: "8px", textAlign: "left", cursor: "pointer", fontSize: "12px", color: T.text, fontFamily: "inherit" } }, "▣ Image")
-            ),
-            React.createElement("input", {
-              ref: inputElRef, className: "glass-input",
-              style: { flex: 1, padding: "10px 8px", border: "none", backgroundColor: "transparent", fontSize: "14px", color: barText, fontFamily: "inherit" },
-              value: inputValue, onChange: e => setInputValue(e.target.value),
-              onKeyDown: e => e.key === "Enter" && !e.shiftKey && handleSendMessage(),
-              placeholder: isTemporaryChat ? (themeMode === "hacker" ? "Enter temp command..." : "Type a temporary message…") : (themeMode === "hacker" ? `[${activeMode.split(" ")[1]}] Execute command...` : `Message NixlAI (${activeMode.split(" ")[1]})...`)
-            }),
-            React.createElement("button", { onClick: () => { setIsTemporaryChat(p => !p); handleStartNewChat(); }, title: isTemporaryChat ? "Disable temporary chat" : "Enable temporary chat", style: { background: "none", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: isTemporaryChat ? (themeMode === "hacker" ? "#0f0" : "#ef4444") : barSub, padding: "0 6px", fontFamily: "inherit" } }, isTemporaryChat ? "◉ On" : "◉ Off"),
-            React.createElement("button", { onClick: toggleRecording, title: "Voice input", style: { background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: isRecording ? (themeMode === "hacker" ? "#0f0" : "#ef4444") : barSub, padding: "0 4px" } }, isRecording ? "■" : "●")
-          )
-        ),
-        React.createElement("button", {
-          className: "send-btn", onClick: handleSendMessage,
-          style: { borderRadius: themeMode === "hacker" ? "0" : "50%", backgroundColor: themeMode === "hacker" ? "transparent" : (isTemporaryChat ? "#ef4444" : "#4f46e5"), border: themeMode === "hacker" ? "1px solid #0f0" : "none", boxShadow: themeMode === "hacker" ? "0 0 10px rgba(0,255,0,0.4)" : `0 4px 14px ${isTemporaryChat ? "rgba(239,68,68,0.4)" : "rgba(79,70,229,0.4)"}` }
-        }, React.createElement(IconPaperPlane, { size: 17, color: themeMode === "hacker" ? "#0f0" : "white" }))
-      ),
-      chatCount >= 5 && !isUserLoggedIn && !isTemporaryChat && React.createElement("div", { style: { fontSize: "12px", color: homeSub, textShadow: homeShadow, marginTop: "8px" } },
-        "✦ Want to back up history? ",
-        React.createElement("span", { onClick: handleGoogleSignIn, style: { color: themeMode === "hacker" ? "#0f0" : "#818cf8", textDecoration: "underline", cursor: "pointer" } }, "Sign in with Google")
-      )
-    ),
 
-    // ── SETTINGS SIDEBAR ──
-    React.createElement("div", {
-      style: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", opacity: isSettingsOpen ? 1 : 0, pointerEvents: isSettingsOpen ? "auto" : "none", transition: "opacity 0.22s ease" },
-      onClick: () => setIsSettingsOpen(false)
-    },
-      React.createElement("div", {
-        className: "sidebar-panel",
-        style: { width: "100%", maxWidth: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column", borderRadius: themeMode === "hacker" ? "0" : "16px", border: `1px solid ${T.border}`, backgroundColor: T.sidebarBg, color: T.text, overflow: "hidden", boxShadow: T.shadow, transform: isSettingsOpen ? "translateX(0) scale(1)" : "translateX(-28px) scale(0.96)", transition: "transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)" },
-        onClick: e => e.stopPropagation()
-      },
-        React.createElement("div", { style: { padding: "20px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 } },
-          React.createElement("div", null, React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", letterSpacing: "0.5px" } }, "CONTROL CENTER"), React.createElement("div", { style: { fontSize: "10px", color: T.subText, marginTop: "2px" } }, "SYSTEM PROTOCOLS")),
-          React.createElement("button", { onClick: () => setIsSettingsOpen(false), style: { background: "none", border: "none", cursor: "pointer", color: T.subText, fontSize: "18px" } }, "×")
-        ),
-        React.createElement("div", { className: "sidebar-scroll" },
-          React.createElement("div", { style: { background: themeMode === "hacker" ? "rgba(0,255,0,0.05)" : "linear-gradient(135deg,rgba(79,70,229,0.1),rgba(124,58,237,0.1))", padding: "14px", borderRadius: themeMode === "hacker" ? "0" : "12px", border: `1px solid ${themeMode === "hacker" ? "#0f0" : "rgba(79,70,229,0.3)"}`, marginBottom: "20px" } },
-            React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#818cf8", marginBottom: "6px" } }, "CREATOR PROFILE"),
-            React.createElement("div", { style: { fontSize: "14px", fontWeight: "700", marginBottom: "4px" } }, "WHO MADE ME"),
-            React.createElement("div", { style: { fontSize: "13px", lineHeight: "1.5", opacity: 0.9 } }, "TEJASH PANDE is a student and young developer who enjoys exploring technology, coding, and building creative projects.")
-          ),
+    // ACCOUNT / SIGN IN
+    showAcct && h(Modal, { title: loggedIn ? "Account" : "Sign in", onClose: () => setShowAcct(false) },
+      authErr && h("div", { className: "err" }, authErr),
+      loggedIn
+        ? h("div", null,
+            h("div", { style: { display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 600 } },
+              photo ? h("img", { className: "av", src: photo, referrerPolicy: "no-referrer", alt: "" }) : h("div", { className: "av" }, (email || "?")[0].toUpperCase()), maskEmail(email)),
+            h("button", { className: "btn red", onClick: () => { if (confirm("Are you sure you want to disconnect your sync?")) window.__nixlai_signOut().then(() => setShowAcct(false)); } }, "Disconnect Sync"))
+        : h("div", null,
+            h("button", { className: "btn", onClick: () => oauth("__nixlai_signIn") }, "Sign in with Google"),
+            h("button", { className: "btn", onClick: () => oauth("__nixlai_signInGithub") }, "Sign in with GitHub"))),
 
-          // ── ACCOUNT INTEGRATION (Google + GitHub + Telegram) ──
-          React.createElement("div", { style: { marginBottom: "20px" } },
-            React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "ACCOUNT INTEGRATION"),
-            authError && React.createElement("div", { style: { fontSize: "12px", color: "#ef4444", padding: "8px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", marginBottom: "10px" } }, authError),
+    // APPEARANCE
+    showApp && h(Modal, { title: "Appearance", onClose: () => setShowApp(false) },
+      h("div", { className: "lab", style: { marginTop: 0 } }, "THEME"),
+      h("div", { className: "opts" }, [["dark", "Dark"], ["light", "Light"], ["hacker", "Hacker"]].map(([k, l]) =>
+        h("button", { key: k, className: "opt" + (theme === k ? " on" : ""), onClick: () => setTheme(k) }, l))),
+      hacker
+        ? h("div", { style: { fontSize: 12, color: "var(--sub)", marginTop: 14 } }, "Matrix rain is active. Wallpapers are available in the Dark and Light themes.")
+        : h("div", null,
+            h("div", { className: "lab" }, "WALLPAPER"),
+            h("div", { className: "opts" }, [["none", "None"], ["custom", "Your image"], ["rain", "Rainfall"]].map(([k, l]) =>
+              h("button", { key: k, className: "opt" + (bgMode === k ? " on" : ""), onClick: () => { if (k === "custom" && !customBg) bgRef.current?.click(); else setBgMode(k); } }, l))),
+            bgMode === "custom" && h("button", { className: "btn", onClick: () => bgRef.current?.click() }, "Change image"))),
 
-            isUserLoggedIn
-              ? React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } },
-                  React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", padding: "10px", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", backgroundColor: T.cardBg } },
-                    userPhoto
-                      ? React.createElement("img", { src: userPhoto, alt: "Profile", referrerPolicy: "no-referrer", style: { width: 36, height: 36, borderRadius: themeMode === "hacker" ? "0" : "50%", objectFit: "cover", flexShrink: 0 } })
-                      : React.createElement("div", { style: { width: 36, height: 36, borderRadius: themeMode === "hacker" ? "0" : "50%", background: themeMode === "hacker" ? "#0f0" : "#4f46e5", color: themeMode === "hacker" ? "#000" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "15px", flexShrink: 0 } }, ((userEmail || realName || "?")[0] || "?").toUpperCase()),
-                    React.createElement("div", { style: { fontSize: "13px", fontWeight: "600", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, maskEmail(userEmail))
-                  ),
-                  React.createElement("button", { onClick: () => setShowSignOutConfirm(true), className: "oauth-btn", style: oauthBtnStyle("#ef4444", "rgba(239,68,68,0.08)") }, "Disconnect Sync")
-                )
-              : React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } },
-                  React.createElement("button", { onClick: handleGoogleSignIn, className: "oauth-btn", style: oauthBtnStyle(isDark ? "#f4f4f5" : "#0f172a", "rgba(128,128,128,0.08)") },
-                    React.createElement(IconGoogle, { size: 16 }), "Sign in with Google"),
-                  React.createElement("button", { onClick: handleGithubSignIn, className: "oauth-btn", style: oauthBtnStyle(isDark ? "#f4f4f5" : "#0f172a", "rgba(128,128,128,0.08)") },
-                    React.createElement(IconGithub, { size: 16 }), "Sign in with GitHub"),
-                  React.createElement("button", { onClick: loadTelegramWidget, className: "oauth-btn", style: oauthBtnStyle("#229ED9", "rgba(34,158,217,0.08)") },
-                    React.createElement(IconTelegram, { size: 16, color: themeMode === "hacker" ? "#0f0" : "#229ED9" }), "Sign in with Telegram")
-                )
-          ),
+    // EXPORT CHAT
+    showExp && h(Modal, { title: "Export chat", onClose: () => setShowExp(false) },
+      msgs.length
+        ? h("div", null,
+            h("div", { style: { fontSize: 13, color: "var(--sub)" } }, "Download this conversation as a file."),
+            h("button", { className: "btn", onClick: () => exportChat("md") }, "Markdown (.md)"),
+            h("button", { className: "btn", onClick: () => exportChat("txt") }, "Plain text (.txt)"))
+        : h("div", { style: { fontSize: 13, color: "var(--sub)" } }, "Open or start a chat first. There's nothing to export yet.")),
 
-          React.createElement("div", { style: { marginBottom: "20px" } },
-            React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "IDENTITY REGISTRY"),
-            React.createElement("label", { style: { fontSize: "10px", color: themeMode === "hacker" ? "#0a0" : "#6b7280", display: "block", marginBottom: "4px" } }, "REAL NAME"),
-            React.createElement("input", { readOnly: true, value: realName, style: { width: "100%", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", padding: "10px", fontSize: "13px", backgroundColor: T.cardBg, color: T.text, marginBottom: "8px", fontFamily: "inherit" } }),
-            React.createElement("label", { style: { fontSize: "10px", color: themeMode === "hacker" ? "#0a0" : "#6b7280", display: "block", marginBottom: "4px" } }, "NICKNAME"),
-            React.createElement("input", { value: nickname, onChange: e => setNickname(e.target.value), style: { width: "100%", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", padding: "10px", fontSize: "13px", backgroundColor: T.cardBg, color: T.text, fontFamily: "inherit" } })
-          ),
-          React.createElement("div", { style: { marginBottom: "20px" } },
-            React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "MODEL PROTOCOL"),
-            React.createElement("select", { value: selectedModel, onChange: e => setSelectedModel(e.target.value), style: { width: "100%", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", padding: "10px", fontSize: "13px", fontFamily: "inherit", backgroundColor: themeMode === "hacker" ? "#000000" : (isDark ? "#18181b" : "#ffffff"), color: themeMode === "hacker" ? "#00ff00" : (isDark ? "#f4f4f5" : "#0f172a"), colorScheme: (isDark || themeMode === "hacker") ? "dark" : "light" } },
-              ...[["llama-3.3-70b-versatile", "Llama 3.3 70B"], ["llama-3.1-8b-instant", "Llama 3.1 8B"], ["mixtral-8x7b-3072", "Mixtral 8x7B"]].map(([val, label]) => React.createElement("option", { key: val, value: val, style: { backgroundColor: themeMode === "hacker" ? "#000000" : (isDark ? "#18181b" : "#ffffff"), color: themeMode === "hacker" ? "#00ff00" : (isDark ? "#f4f4f5" : "#0f172a") } }, label))
-            ),
-            
-            // MEMORY VAULT BUTTON
-            React.createElement("button", {
-              onClick: () => { setIsMemoryOpen(true); setIsSettingsOpen(false); },
-              style: { marginTop: "14px", width: "100%", padding: "10px", border: themeMode === "hacker" ? "1px solid #0f0" : `1px solid #4f46e5`, borderRadius: themeMode === "hacker" ? "0" : "8px", backgroundColor: themeMode === "hacker" ? "transparent" : "rgba(79,70,229,0.1)", color: themeMode === "hacker" ? "#0f0" : "#818cf8", fontSize: "12px", cursor: "pointer", fontFamily: "inherit", fontWeight: "bold" }
-            }, "Manage Memory Vault")
-          ),
-          React.createElement("div", { style: { marginBottom: "20px" } },
-            React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "SYSTEM PROMPT"),
-            React.createElement("textarea", { value: systemPrompt, onChange: e => setSystemPrompt(e.target.value), rows: 4, style: { width: "100%", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", padding: "10px", fontSize: "13px", backgroundColor: T.cardBg, color: T.text, resize: "none", fontFamily: "inherit" } })
-          ),
-          React.createElement("div", { style: { marginBottom: bgMode === "none" ? "20px" : "0px", maxHeight: bgMode === "none" ? "300px" : "0px", opacity: bgMode === "none" ? 1 : 0, overflow: "hidden", transition: "all 0.4s ease-in-out" } },
-            React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "VISUAL THEME"),
-            themeMode !== "hacker" && React.createElement("div", { style: { display: "flex", gap: "10px", marginBottom: "15px" } },
-              React.createElement("div", { onClick: () => setCurrentTheme("light"), style: { flex: 1, height: "80px", borderRadius: "8px", cursor: "pointer", border: currentTheme === "light" ? "2px solid #4f46e5" : `1px solid ${T.border}`, background: "radial-gradient(circle at 30% 30%, #ffffff, #e0eafc, #cfdef3)", display: "flex", alignItems: "flex-end", padding: "8px", boxShadow: "inset 0 0 20px rgba(255,255,255,0.8)", position: "relative", overflow: "hidden" } }, React.createElement("div", { style: { position: "absolute", top: "-10px", right: "-10px", width: "40px", height: "40px", background: "rgba(255, 235, 59, 0.6)", filter: "blur(10px)", borderRadius: "50%" } }), React.createElement("span", { style: { fontSize: "11px", fontWeight: "bold", color: "#333", zIndex: 1 } }, "Light Theme")),
-              React.createElement("div", { onClick: () => setCurrentTheme("dark"), style: { flex: 1, height: "80px", borderRadius: "8px", cursor: "pointer", border: currentTheme === "dark" ? "2px solid #4f46e5" : `1px solid ${T.border}`, background: "radial-gradient(circle at 70% 70%, #2c003e, #0a0a2a, #000000)", display: "flex", alignItems: "flex-end", padding: "8px", boxShadow: "inset 0 0 20px rgba(0,0,0,0.8)", position: "relative", overflow: "hidden" } }, React.createElement("div", { style: { position: "absolute", top: "-10px", left: "-10px", width: "50px", height: "50px", background: "rgba(138, 43, 226, 0.4)", filter: "blur(12px)", borderRadius: "50%" } }), React.createElement("span", { style: { fontSize: "11px", fontWeight: "bold", color: "#fff", zIndex: 1 } }, "Dark Theme"))
-            ),
-            React.createElement("div", { style: { display: "flex", gap: "10px" } },
-              React.createElement("button", { onClick: () => setThemeMode("normal"), style: { flex: 1, padding: "8px", borderRadius: "6px", cursor: "pointer", border: themeMode === "normal" ? "2px solid #4f46e5" : `1px solid ${T.border}`, background: themeMode === "normal" ? "rgba(79,70,229,0.1)" : "transparent", color: T.text, fontSize: "12px", fontWeight: "bold", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif" } }, "Normal Theme"),
-              React.createElement("button", { onClick: () => setThemeMode("hacker"), style: { flex: 1, padding: "8px", borderRadius: themeMode === "hacker" ? "0" : "6px", cursor: "pointer", border: themeMode === "hacker" ? "2px solid #0f0" : `1px solid ${T.border}`, background: themeMode === "hacker" ? "rgba(0, 255, 0, 0.1)" : "transparent", color: themeMode === "hacker" ? "#0f0" : T.text, fontSize: "12px", fontWeight: "bold", fontFamily: "'Courier New', Courier, monospace" } }, "Hacker Theme")
-            )
-          ),
-          React.createElement("div", { style: { marginBottom: themeMode !== "hacker" ? "20px" : "0px", maxHeight: themeMode !== "hacker" ? "300px" : "0px", opacity: themeMode !== "hacker" ? 1 : 0, overflow: "hidden", transition: "all 0.4s ease-in-out" } },
-            React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: themeMode === "hacker" ? "#0a0" : "#6b7280", marginBottom: "10px" } }, "BACKGROUND"),
-            React.createElement("div", { style: { display: "flex", gap: "10px" } },
-              React.createElement("div", { onClick: () => setBgMode("none"), className: "bg-option-card", style: { border: bgMode === "none" ? "2px solid #4f46e5" : `1px solid ${T.border}`, background: T.cardBg || "rgba(128,128,128,0.08)", color: T.subText } }, "None"),
-              React.createElement("div", { onClick: () => { if (customBgUrl) setBgMode("custom"); else bgFileInputRef.current?.click(); }, className: "bg-option-card", style: { border: bgMode === "custom" ? "2px solid #4f46e5" : `1px solid ${T.border}`, backgroundImage: bgMode === "custom" && customBgUrl ? `url(${customBgUrl})` : "none", backgroundSize: "cover", backgroundPosition: "center", background: bgMode === "custom" && customBgUrl ? undefined : "linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.15))", color: bgMode === "custom" && customBgUrl ? "#fff" : T.text, textShadow: bgMode === "custom" && customBgUrl ? "0 1px 3px rgba(0,0,0,0.8)" : "none" } }, "Add Your Own"),
-              React.createElement("div", { onClick: () => setBgMode("rain"), className: "bg-option-card", style: { border: bgMode === "rain" ? "2px solid #4f46e5" : `1px solid ${T.border}`, background: "linear-gradient(180deg, #0f172a, #1e293b)", color: "#aed6f1", overflow: "hidden" } }, React.createElement("div", { style: { position: "absolute", inset: 0, opacity: 0.5, background: "repeating-linear-gradient(100deg, transparent 0 6px, rgba(174,214,241,0.5) 6px 7px)" } }), React.createElement("span", { style: { position: "relative", zIndex: 1 } }, "Rainfall"))
-            ),
-            bgMode === "custom" && React.createElement("button", { onClick: () => bgFileInputRef.current?.click(), style: { marginTop: "8px", width: "100%", padding: "8px", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "6px", background: "transparent", color: T.text, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" } }, "Change Image")
-          )
-        )
-      )
-    ),
-
-    // ── HISTORY SIDEBAR ──
-    React.createElement("div", {
-      style: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", justifyContent: "flex-end", opacity: isHistoryOpen ? 1 : 0, pointerEvents: isHistoryOpen ? "auto" : "none", transition: "opacity 0.22s ease" },
-      onClick: () => setIsHistoryOpen(false)
-    },
-      React.createElement("div", {
-        className: "sidebar-panel",
-        style: { width: "100%", maxWidth: "340px", height: "calc(100% - 32px)", margin: "16px", display: "flex", flexDirection: "column", borderRadius: themeMode === "hacker" ? "0" : "16px", border: `1px solid ${T.border}`, backgroundColor: T.sidebarBg, color: T.text, overflow: "hidden", boxShadow: T.shadow, transform: isHistoryOpen ? "translateX(0) scale(1)" : "translateX(28px) scale(0.96)", transition: "transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)" },
-        onClick: e => e.stopPropagation()
-      },
-        React.createElement("div", { style: { padding: "20px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 } },
-          React.createElement("div", null, React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", letterSpacing: "0.5px" } }, "SAVED CHAT LOGS"), React.createElement("div", { style: { fontSize: "10px", color: T.subText, marginTop: "2px" } }, isUserLoggedIn ? "SYNCED TO ACCOUNT" : "LOCAL CACHE")),
-          React.createElement("button", { onClick: () => setIsHistoryOpen(false), style: { background: "none", border: "none", cursor: "pointer", color: T.subText, fontSize: "18px" } }, "×")
-        ),
-        React.createElement("div", { className: "sidebar-scroll" },
-          historyChats.length === 0 ? React.createElement("div", { style: { padding: "20px", fontSize: "13px", color: T.subText, textAlign: "center" } }, themeMode === "hacker" ? "> NO LOGS FOUND." : (isUserLoggedIn ? "No chats saved yet." : "Sign in to sync and save your chat history.")) : historyChats.map(chat => React.createElement("div", { key: chat.id, onClick: () => handleSelectHistoricChat(chat), style: { padding: "12px", borderRadius: themeMode === "hacker" ? "0" : "8px", marginBottom: "8px", cursor: "pointer", border: `1px solid ${T.border}`, backgroundColor: activeChatId === chat.id ? (themeMode === "hacker" ? "rgba(0,255,0,0.15)" : "rgba(79,70,229,0.1)") : T.cardBg, fontWeight: activeChatId === chat.id ? "600" : "400" } }, React.createElement("div", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "13px" } }, (themeMode === "hacker" ? "> " : "› ") + chat.title), React.createElement("div", { style: { fontSize: "10px", color: T.subText, marginTop: "4px" } }, chat.date)))
-        )
-      )
-    ),
-
-    // ── MEMORY VAULT MODAL ──
-    isMemoryOpen && React.createElement("div", {
-      style: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 100000, display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)" },
-      onClick: () => setIsMemoryOpen(false)
-    },
-      React.createElement("div", {
-        style: {
-          width: "90%", maxWidth: "500px", maxHeight: "70vh", backgroundColor: themeMode === "hacker" ? "#000" : T.sidebarBg,
-          border: themeMode === "hacker" ? "1px solid #0f0" : `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "16px",
-          display: "flex", flexDirection: "column", boxShadow: T.shadow, color: T.text
-        },
-        onClick: e => e.stopPropagation()
-      },
-        React.createElement("div", { style: { padding: "16px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" } },
-          React.createElement("div", null,
-            React.createElement("div", { style: { fontSize: "15px", fontWeight: "700", color: themeMode === "hacker" ? "#0f0" : T.text } }, "Memory Vault"),
-            React.createElement("div", { style: { fontSize: "11px", color: T.subText, marginTop: "4px" } }, "NixlAI remembers useful things about you.")
-          ),
-          React.createElement("button", { onClick: () => setIsMemoryOpen(false), style: { background: "none", border: "none", cursor: "pointer", color: T.subText, fontSize: "20px" } }, "×")
-        ),
-        React.createElement("div", { style: { padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" } },
-          memories.length === 0 ? React.createElement("div", { style: { textAlign: "center", color: T.subText, fontSize: "13px" } }, "Vault is empty.") :
-          memories.map(mem => 
-            React.createElement("div", { key: mem.id, style: { padding: "12px", border: `1px solid ${T.border}`, borderRadius: themeMode === "hacker" ? "0" : "8px", backgroundColor: T.cardBg } },
-              editingMemoryId === mem.id ? 
-                React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } },
-                  React.createElement("textarea", {
-                    value: editingMemoryText, onChange: e => setEditingMemoryText(e.target.value),
-                    style: { width: "100%", padding: "8px", borderRadius: "6px", backgroundColor: "transparent", border: `1px solid ${themeMode === "hacker" ? "#0f0" : "#4f46e5"}`, color: T.text, fontSize: "13px", resize: "none", fontFamily: "inherit" }
-                  }),
-                  React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "6px" } },
-                    React.createElement("button", { onClick: () => setEditingMemoryId(null), style: { padding: "4px 8px", fontSize: "11px", background: "none", border: "none", color: T.text, cursor: "pointer" } }, "Cancel"),
-                    React.createElement("button", { onClick: () => { setMemories(p => p.map(m => m.id === mem.id ? {...m, text: editingMemoryText} : m)); setEditingMemoryId(null); }, style: { padding: "4px 12px", fontSize: "11px", background: themeMode === "hacker" ? "transparent" : "#4f46e5", border: themeMode === "hacker" ? "1px solid #0f0" : "none", color: themeMode === "hacker" ? "#0f0" : "white", borderRadius: "4px", cursor: "pointer" } }, "Save")
-                  )
-                )
-              : React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "flex-start" } },
-                  React.createElement("div", { style: { fontSize: "13px", lineHeight: "1.4" } }, `“${mem.text}”`),
-                  React.createElement("div", { style: { display: "flex", gap: "4px", flexShrink: 0 } },
-                    React.createElement("button", { onClick: () => { setEditingMemoryId(mem.id); setEditingMemoryText(mem.text); }, style: { background: "none", border: "none", color: T.subText, cursor: "pointer", fontSize: "12px" } }, "✎"),
-                    React.createElement("button", { onClick: () => setMemories(p => p.filter(m => m.id !== mem.id)), style: { background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "12px" } }, "×")
-                  )
-                )
-            )
-          )
-        )
-      )
-    ),
-
-    // ── DISCONNECT SYNC CONFIRMATION MODAL ──
-    showSignOutConfirm && React.createElement("div", {
-      style: { position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", zIndex: 99999, display: "flex", justifyContent: "center", alignItems: "center", backdropFilter: "blur(4px)" }
-    },
-      React.createElement("div", {
-        style: { backgroundColor: "#111", padding: "40px", borderRadius: themeMode === "hacker" ? "0" : "16px", border: themeMode === "hacker" ? "1px solid #0f0" : "1px solid #333", textAlign: "center", color: "white", width: "calc(100% - 32px)", maxWidth: "420px", display: "flex", flexDirection: "column", gap: "30px", boxShadow: "0 20px 40px rgba(0,0,0,0.7)" }
-      },
-        React.createElement("h2", { style: { fontSize: "18px", fontWeight: "800", letterSpacing: "1px", margin: 0, lineHeight: "1.4", fontFamily: themeMode === "hacker" ? "'Courier New', Courier, monospace" : "inherit", color: themeMode === "hacker" ? "#0f0" : "white" } }, "ARE YOU SURE YOU WANNA DISCONNECT YOUR SYNC"),
-        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "15px" } },
-          React.createElement("button", { className: "sync-btn-option", style: { fontFamily: "inherit" }, onClick: confirmSignOut }, "YEAH I AM SURE"),
-          React.createElement("button", { className: "sync-btn-option", style: { fontFamily: "inherit" }, onClick: () => setShowSignOutConfirm(false) }, "NO I DON'T WNNA")
-        )
-      )
-    )
-
-  );
+    // CONTROL CENTER
+    showSet && h(Modal, { title: "Control Center", onClose: () => setShowSet(false) },
+      h("div", { className: "card", style: { padding: 12, fontSize: 13, lineHeight: 1.5 } }, h("b", null, "Who made me"), h("br"), "TEJASH PANDE is a student and young developer who enjoys exploring technology, coding, and building creative projects."),
+      h("div", { className: "lab" }, "NICKNAME"),
+      h("input", { className: "fld", value: nick, onChange: e => setNick(e.target.value) }),
+      h("div", { className: "lab" }, "MODEL"),
+      h("select", { className: "fld", value: model, onChange: e => setModel(e.target.value) }, MODELS.map(([v, l]) => h("option", { key: v, value: v }, l))),
+      h("div", { className: "lab" }, "SYSTEM PROMPT"),
+      h("textarea", { className: "fld", rows: 4, style: { resize: "none" }, value: sysPrompt, onChange: e => setSysPrompt(e.target.value) }))
+  ));
 }
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(React.createElement(App));
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
 </script>
 </body>
 </html>
