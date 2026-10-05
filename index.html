@@ -181,6 +181,33 @@ select.fld{background:var(--modal)}
 [data-theme=hacker] .mc.on,[data-theme=hacker] .opt.on,[data-theme=hacker] .nav button.on{background:rgba(0,255,0,.12);border-color:#0f0;box-shadow:none}
 [data-theme=hacker] .u .bub{background:transparent}
 [data-theme=hacker] .av{color:#000;background:#0f0;border-color:#0f0}
+/* NEW CHAT ANIMATION */
+[data-theme=hacker]{--ac2:#00ff41}
+.nc{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;pointer-events:none;overflow:hidden;background:radial-gradient(circle at 50% 50%,rgba(99,102,241,.22),transparent 60%),var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:ncFade 1.15s ease both}
+.nc::before{content:"";position:absolute;top:0;bottom:0;left:-40%;width:40%;background:linear-gradient(100deg,transparent,rgba(165,180,255,.22),transparent);transform:skewX(-18deg);animation:ncSweep 1s .1s ease-in-out both}
+.nc-orb{position:relative;width:104px;height:104px;display:flex;align-items:center;justify-content:center;animation:ncPop .7s cubic-bezier(.2,1.2,.3,1) both}
+.nc-ring{position:absolute;inset:0;border-radius:50%;border:2px solid var(--ac);opacity:0;animation:ncRing 1.1s ease-out both}
+.nc-ring:nth-child(2){animation-delay:.18s}
+.nc-ring:nth-child(3){animation-delay:.36s}
+.nc-spin{position:absolute;inset:-6px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 55%,var(--ac) 85%,var(--ac2) 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));animation:ncSpin .9s linear infinite}
+.nc-core{width:62px;height:62px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--ac2));display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 0 34px rgba(124,92,255,.65);animation:ncPulse .9s ease-in-out infinite}
+.nc-core svg{animation:ncPlus .7s .15s cubic-bezier(.2,1.3,.3,1) both}
+.nc-txt{font-size:15px;font-weight:700;letter-spacing:.5px;color:var(--tx);display:flex;align-items:center;gap:2px;animation:ncUp .5s .15s ease both}
+.nc-dots span{display:inline-block;animation:bn 1s infinite}
+.nc-dots span:nth-child(2){animation-delay:.15s}.nc-dots span:nth-child(3){animation-delay:.3s}
+@keyframes ncFade{0%{opacity:0}15%{opacity:1}72%{opacity:1}100%{opacity:0}}
+@keyframes ncSweep{from{left:-40%}to{left:120%}}
+@keyframes ncPop{from{transform:scale(.3) rotate(-90deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes ncRing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.6);opacity:0}}
+@keyframes ncSpin{to{transform:rotate(360deg)}}
+@keyframes ncPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes ncPlus{from{transform:rotate(-180deg) scale(.2);opacity:0}to{transform:none;opacity:1}}
+@keyframes ncUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.enter{animation:ncIn .65s .55s cubic-bezier(.2,.8,.2,1) both}
+.enter .mc{animation:ncIn .5s cubic-bezier(.2,.8,.2,1) both}
+.enter .mc:nth-child(1){animation-delay:.7s}.enter .mc:nth-child(2){animation-delay:.76s}.enter .mc:nth-child(3){animation-delay:.82s}.enter .mc:nth-child(4){animation-delay:.88s}.enter .mc:nth-child(5){animation-delay:.94s}.enter .mc:nth-child(6){animation-delay:1s}
+@keyframes ncIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.nc,.nc::before,.nc-orb,.nc-ring,.nc-spin,.nc-core,.nc-core svg,.nc-txt,.nc-dots span,.enter,.enter .mc{animation-duration:.01s!important;animation-delay:0s!important}}
 @media(max-width:1100px){.main{grid-template-columns:240px 1fr}.right{display:none}}
 @media(max-width:768px){
   .main{grid-template-columns:1fr}
@@ -378,6 +405,9 @@ function App() {
   const [showAcct, setShowAcct] = useState(false);
   const [showApp, setShowApp] = useState(false);
   const [showExp, setShowExp] = useState(false);
+  const [ncAnim, setNcAnim] = useState(false);
+  const [chatKey, setChatKey] = useState(0);
+  const ncTimer = useRef(null);
   const ls = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
   const [theme, setTheme] = useState(() => ls("nixlai_theme", "dark"));
   const [bgMode, setBgMode] = useState(() => { const m = ls("nixlai_bgMode", "none"); return m === "custom" && !ls("nixlai_customBgUrl", "") ? "none" : m; });
@@ -496,6 +526,8 @@ function App() {
 
   const newChat = () => {
     setActiveId(null); setMsgs([]); setInput(""); setFile(null); setNavOpen(false);
+    setChatKey(k => k + 1); setNcAnim(true);
+    clearTimeout(ncTimer.current); ncTimer.current = setTimeout(() => setNcAnim(false), 1150);
   };
   const openChat = (c) => { setActiveId(c.id); setMsgs(c.messages); setTemp(false); setShowHist(false); setNavOpen(false); };
   const toggleRec = () => {
@@ -610,7 +642,7 @@ function App() {
         h("div", { className: "nav" },
           navItem("home", "Home", newChat, true),
           navItem("lock", "Memory Vault", () => setShowMem(true)),
-          navItem("sliders", "Control Center", () => setShowSet(true)),
+          navItem("plus", "New Chat", newChat),
           navItem("clock", "History", () => setShowHist(true)),
           navItem("sun", "Appearance", () => setShowApp(true)),
           navItem("download", "Export Chat", () => setShowExp(true))
@@ -625,7 +657,7 @@ function App() {
           h("polygon", { points: "0,300 0,250 120,220 220,250 330,200 450,245 560,215 680,250 800,225 800,300", fill: "rgba(14,12,60,.8)" })),
         h("div", { className: "scroll" },
           empty
-            ? h("div", { className: "hero" },
+            ? h("div", { className: "hero enter", key: "hero" + chatKey },
                 h("div", null,
                   h("h1", null, temp ? "◉ Temporary chat" : `${greet}, ${nick} ✦`),
                   h("p", null, temp ? "Nothing here will be saved." : "What would you like to do today?")),
@@ -637,6 +669,14 @@ function App() {
                 thinking && h("div", { className: "msg a" }, h("div", { className: "bub" }, h("span", { className: "td" }), h("span", { className: "td" }), h("span", { className: "td" }))),
                 h("div", { ref: endRef }))
         ),
+
+        // NEW CHAT ANIMATION OVERLAY
+        ncAnim && h("div", { className: "nc", key: "nc" + chatKey },
+          h("div", { className: "nc-orb" },
+            h("span", { className: "nc-ring" }), h("span", { className: "nc-ring" }), h("span", { className: "nc-ring" }),
+            h("span", { className: "nc-spin" }),
+            h("div", { className: "nc-core" }, Ic("plus", 28))),
+          h("div", { className: "nc-txt" }, "Starting new chat", h("span", { className: "nc-dots" }, h("span", null, "."), h("span", null, "."), h("span", null, ".")))),
 
         // INPUT
         h("div", { className: "inwrap" },
